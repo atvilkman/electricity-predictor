@@ -191,3 +191,19 @@ def fetch_all_weather(days_ahead: int = 10) -> pd.DataFrame:
     helsinki = fetch_open_meteo("helsinki", days_ahead)
     vaasa = fetch_open_meteo("vaasa", days_ahead)
     return pd.merge(helsinki, vaasa, on="timestamp", how="outer").sort_values("timestamp")
+
+
+def fetch_porssisahko() -> pd.DataFrame:
+    """Fetch near-term known spot prices (~36h) from porssisahko.net."""
+    url = "https://api.porssisahko.net/v2/latest-prices.json"
+    resp = requests.get(url, timeout=30)
+    resp.raise_for_status()
+    payload = resp.json()["prices"]
+
+    df = pd.DataFrame(payload)
+    df["timestamp"] = pd.to_datetime(df["startDate"], utc=True)
+    df["price_snt_kwh"] = pd.to_numeric(df["price"], errors="coerce") / 10.0
+
+    df = df[["timestamp", "price_snt_kwh"]].sort_values("timestamp")
+    df = df.set_index("timestamp").resample("1h").mean().reset_index()
+    return df
