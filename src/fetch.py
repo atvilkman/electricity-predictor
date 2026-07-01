@@ -155,3 +155,39 @@ def fetch_fingrid_forecasts(hours_ahead: int = 72) -> pd.DataFrame:
 
     merged = pd.merge(consumption, wind, on="timestamp", how="outer").sort_values("timestamp")
     return merged
+
+
+OPEN_METEO_LOCATIONS = {
+    "helsinki": (60.1699, 24.9384),
+    "vaasa": (63.0960, 21.6158),
+}
+
+
+def fetch_open_meteo(location: str = "helsinki", days_ahead: int = 10) -> pd.DataFrame:
+    """Fetch hourly weather forecast (temp + wind) from Open-Meteo."""
+    lat, lon = OPEN_METEO_LOCATIONS[location]
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": "temperature_2m,wind_speed_10m",
+        "forecast_days": days_ahead,
+        "timezone": "UTC",
+    }
+    resp = requests.get(url, params=params, timeout=30)
+    resp.raise_for_status()
+    payload = resp.json()["hourly"]
+
+    df = pd.DataFrame({
+        "timestamp": pd.to_datetime(payload["time"], utc=True),
+        f"temp_c_{location}": payload["temperature_2m"],
+        f"wind_ms_{location}": payload["wind_speed_10m"],
+    })
+    return df
+
+
+def fetch_all_weather(days_ahead: int = 10) -> pd.DataFrame:
+    """Merge Helsinki + Vaasa weather forecasts into one hourly frame."""
+    helsinki = fetch_open_meteo("helsinki", days_ahead)
+    vaasa = fetch_open_meteo("vaasa", days_ahead)
+    return pd.merge(helsinki, vaasa, on="timestamp", how="outer").sort_values("timestamp")
