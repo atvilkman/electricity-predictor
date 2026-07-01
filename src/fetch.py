@@ -9,6 +9,7 @@ Open-Meteo weather.
 import re
 import sys
 import glob
+import time
 import pandas as pd
 
 TZ_OFFSET = {"EET": "+02:00", "EEST": "+03:00"}
@@ -94,3 +95,63 @@ if __name__ == "__main__":
     out_path = "data/price_history_hourly.parquet"
     hourly.to_parquet(out_path, index=False)
     print(f"\nWritten: {out_path}")
+
+
+import os
+import requests
+
+FINGRID_BASE = "https://data.fingrid.fi/api/datasets/{id}/data"
+
+FINGRID_DATASETS = {
+    "consumption_forecast_mw": 166,  # 72h ahead, 15-min
+    "wind_forecast_mw": 245,          # 36h ahead, 15-min
+}
+
+
+def fetch_fingrid_dataset(dataset_id: int, start_iso: str, end_iso: str) -> pd.DataFrame:
+    """Fetch one Fingrid dataset over [start_iso, end_iso) as hourly-mean values."""
+    api_key = os.environ["FINGRID_API_KEY"]
+    url = FINGRID_BASE.format(id=dataset_id)
+    headers = {"x-api-key": api_key}
+    params = {
+        "startTime": start_iso,
+        "endTime": end_iso,
+        "format": "json",
+        "pageSize": 20000,
+        "oneRowPerTimePeriod": "true",
+    }
+    resp = requests.get(url, headers=headers, params=params, timeout=30)
+    resp.raise_for_status()
+    payload = resp.json()
+
+    rows = payload.get("data", payload)
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return pd.DataFrame(columns=["timestamp", "value"])
+
+    df["timestamp"] = pd.to_datetime(df["startTime"], utc=True)
+    known_cols = {"startTime", "endTime", "datasetId", "timestamp"}
+    value_col = [c for c in df.columns if c not in known_cols][0]
+    df["value"] = pd.to_numeric(df[value_col], errors="coerce")
+    df = df[["timestamp", "value"]].set_index("timestamp")
+    return df.resample("1h").mean().reset_index()
+
+
+def fetch_fingrid_forecasts(hours_ahead: int = 72) -> pd.DataFrame:
+    """Pull consumption + wind forecasts and merge into one hourly frame."""
+    now = pd.Timestamp.utcnow()
+    start_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end_iso = (now + pd.Timedelta(hours=hours_ahead)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    consumption = fetch_fingrid_dataset(
+        FINGRID_DATASETS["consumption_forecast_mw"], start_iso, end_iso
+    ).rename(columns={"value": "consumption_forecast_mw"})
+
+    time.sleep(2)
+
+    wind = fetch_fingrid_dataset(
+        FINGRID_DATASETS["wind_forecast_mw"], start_iso, end_iso
+    ).rename(columns={"value": "wind_forecast_mw"})
+
+    merged = pd.merge(consumption, wind, on="timestamp", how="outer").sort_values("timestamp")
+    return merged
