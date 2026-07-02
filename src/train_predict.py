@@ -33,7 +33,8 @@ def make_horizon_dataset(df: pd.DataFrame, horizon_hours: int, feature_cols: lis
     """Build X, y for a given horizon: y = price `horizon_hours` ahead of each row."""
     df = df.copy()
     df["target"] = df["price_snt_kwh"].shift(-horizon_hours)
-    usable = df.dropna(subset=feature_cols + ["target"])
+    # Only drop rows missing the target. LightGBM handles NaN in features natively.
+    usable = df.dropna(subset=["target"])
     return usable[feature_cols], usable["target"], usable["timestamp"]
 
 
@@ -116,8 +117,8 @@ def init_db(db_path: str = "data/electricity.db"):
 
 
 if __name__ == "__main__":
-    price_df = pd.read_parquet("data/price_history_hourly.parquet")
-    feats = build_features(price_df)
+    feats_raw = pd.read_parquet("data/features_full_hourly.parquet")
+    feats = build_features(feats_raw)
 
     print(f"Total feature rows: {len(feats)}")
     print(f"Date range: {feats['timestamp'].min()} -> {feats['timestamp'].max()}")
@@ -135,5 +136,5 @@ if __name__ == "__main__":
     conn.close()
     print("\nDB initialized: data/electricity.db (predictions + actuals tables)")
 
-    results_df.to_csv("data/model_validation_results.csv", index=False)
-    print("Written: data/model_validation_results.csv")
+    results_df.to_parquet("data/model_validation_results.parquet", index=False)
+    print("Written: data/model_validation_results.parquet")

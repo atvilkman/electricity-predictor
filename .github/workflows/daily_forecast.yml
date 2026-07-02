@@ -1,0 +1,65 @@
+name: Daily forecast pipeline
+
+on:
+  schedule:
+    - cron: '15 14 * * *'
+  workflow_dispatch:
+    inputs:
+      full_backfill:
+        description: 'Run full backfill instead of incremental?'
+        required: false
+        default: 'false'
+
+jobs:
+  update-forecast:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Backfill (incremental)
+        if: ${{ inputs.full_backfill != 'true' }}
+        env:
+          FINGRID_API_KEY: ${{ secrets.FINGRID_API_KEY }}
+        run: python src/backfill_incremental.py
+
+      - name: Backfill (full)
+        if: ${{ inputs.full_backfill == 'true' }}
+        env:
+          FINGRID_API_KEY: ${{ secrets.FINGRID_API_KEY }}
+        run: python src/backfill_history.py
+
+      - name: Retrain models
+        run: python src/train_predict.py
+
+      - name: Generate and freeze forecast
+        run: python src/generate_forecast.py
+
+      - name: Export web snapshot
+        run: python src/export_web_snapshot.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/*.parquet data/web_snapshot.json data/electricity.db
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Daily forecast update ($(date -u +'%Y-%m-%d %H:%M UTC'))"
+            git push
+          fi
