@@ -32,3 +32,4 @@ build/
 *.egg-info/
 
 !data/web_snapshot.json
+!data/grid_snapshot.json

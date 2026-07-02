@@ -4,6 +4,7 @@ import ForecastChart from "@/components/ForecastChart";
 import MetricCards from "@/components/MetricCards";
 import Tabs from "@/components/Tabs";
 import EmptyTab from "@/components/EmptyTab";
+import GridTab from "@/components/GridTab";
 import { loadSnapshot, type Snapshot } from "@/lib/data";
 
 export default function Home() {
@@ -73,6 +74,7 @@ export default function Home() {
             title="Accuracy: model vs naive-week baseline, by horizon"
             message="No scored predictions yet. Accuracy fills in once daily forecasts graduate into known actuals — needs several days of automated runs."
           /> },
+        { id: "grid", label: "Grid", content: <GridTab /> },
       ]} />
     </main>
   );

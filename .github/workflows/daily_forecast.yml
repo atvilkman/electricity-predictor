@@ -52,6 +52,14 @@ jobs:
       - name: Record actuals for matured predictions
         run: python src/record_actuals.py
 
+      - name: Fetch ENTSO-E grid data (incremental)
+        env:
+          ENTSOE_API_TOKEN: ${{ secrets.ENTSOE_API_TOKEN }}
+        run: python src/fetch_entsoe_grid.py incremental
+
+      - name: Export grid snapshot
+        run: python src/export_grid_snapshot.py
+
       - name: Export web snapshot
         run: python src/export_web_snapshot.py
 
@@ -59,7 +67,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/*.parquet data/web_snapshot.json
+          git add data/*.parquet data/web_snapshot.json data/grid_snapshot.json
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
