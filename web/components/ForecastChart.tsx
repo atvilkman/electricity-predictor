@@ -47,19 +47,17 @@ function buildDailyTicks(start: number, end: number): number[] {
 
 type TooltipEntry = {
   payload?: Point;
-  dataKey?: string | number;
-  value?: number | string | null;
+  dataKey?: string | number | ((obj: unknown) => unknown);
+  value?: number | string | readonly (string | number)[] | null;
 };
 
 // Stable top-level component — never remounts between renders.
 // Filters payload by dataKey so upper/lower/knownArea/current never win.
-function ForecastTooltip({
-  active,
-  payload,
-}: {
+function ForecastTooltip(props: {
   active?: boolean;
-  payload?: TooltipEntry[];
+  payload?: readonly TooltipEntry[];
 }) {
+  const { active, payload } = props;
   if (!active || !payload || payload.length === 0) return null;
 
   const priceEntry = payload.find(
@@ -265,15 +263,19 @@ export default function ForecastChart({ snap }: { snap: Snapshot }) {
               dataKey="forecast"
               position="top"
               offset={12}
-              content={(props: { x?: number; y?: number; value?: number; index?: number }) => {
-                const { x, y, value, index } = props;
-                // Skip missing values, the bridge point, and zero/negative guard removed
-                if (value === undefined || value === null || index === undefined) return null;
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              content={(props: any) => {
+                const x = props.x as string | number | undefined;
+                const y = props.y as string | number | undefined;
+                const value = props.value;
+                const index = props.index as number | undefined;
+                if (typeof value !== "number" || index === undefined) return null;
                 if (data[index]?.isForecastBridge) return null;
+                const numY = typeof y === "number" ? y : parseFloat(String(y ?? "0"));
                 return (
                   <text
                     x={x}
-                    y={(y ?? 0) - 12}
+                    y={numY - 12}
                     fill="#1f77b4"
                     fontSize={12}
                     fontWeight={600}
