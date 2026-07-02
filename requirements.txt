@@ -7,3 +7,4 @@ plotly==5.22.0
 pyarrow==16.1.0
 holidays==0.47
 python-dotenv==1.0.1
+scikit-learn==1.5.0
