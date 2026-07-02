@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import {
   ComposedChart, AreaChart, Area, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Tooltip, ResponsiveContainer,
 } from "recharts";
 import { loadGridSnapshot, filterByDays, type GridSnapshot } from "@/lib/gridData";
 
@@ -47,16 +47,112 @@ function RangeSelector({ value, onChange }: { value: RangeOption; onChange: (v: 
   );
 }
 
+function SeriesFilterDropdown({
+  options, selected, onToggle, onSelectAll, onClearAll, colors, isOpen, setIsOpen, label,
+}: {
+  options: string[];
+  selected: Set<string>;
+  onToggle: (opt: string) => void;
+  onSelectAll: () => void;
+  onClearAll: () => void;
+  colors: Record<string, string>;
+  isOpen: boolean;
+  setIsOpen: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 bg-white text-gray-700 hover:border-gray-400 flex items-center gap-2"
+      >
+        {label} ({selected.size}/{options.length})
+        <span className="text-gray-400">{isOpen ? "▲" : "▼"}</span>
+      </button>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-20 p-3">
+            <div className="flex gap-2 mb-2 pb-2 border-b border-gray-100">
+              <button onClick={onSelectAll} className="text-xs text-blue-600 hover:underline">Select all</button>
+              <button onClick={onClearAll} className="text-xs text-blue-600 hover:underline">Clear all</button>
+            </div>
+            <div className="flex flex-col gap-1.5 max-h-[280px] overflow-y-auto">
+              {options.map(opt => (
+                <label key={opt} className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(opt)}
+                    onChange={() => onToggle(opt)}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: colors[opt] ?? "#9ca3af" }} />
+                  <span className="truncate">{opt}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function GridTab() {
   const [snap, setSnap] = useState<GridSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadRange, setLoadRange] = useState<RangeOption>(7);
   const [genRange, setGenRange] = useState<RangeOption>(7);
   const [flowRange, setFlowRange] = useState<RangeOption>(7);
+  const [selectedFuels, setSelectedFuels] = useState<Set<string>>(new Set());
+  const [selectedBorders, setSelectedBorders] = useState<Set<string>>(new Set());
+  const [genFilterOpen, setGenFilterOpen] = useState(false);
+  const [flowFilterOpen, setFlowFilterOpen] = useState(false);
 
   useEffect(() => {
     loadGridSnapshot().then(setSnap).catch(e => setError(String(e)));
   }, []);
+
+  // Hoisted before conditional returns so hooks are called unconditionally.
+  const genFiltered = snap ? filterByDays(snap.generation, genRange) : [];
+  const fuelTypes = Array.from(new Set(genFiltered.map(r => r.fuel)));
+  const flowFiltered = snap ? filterByDays(snap.crossborder, flowRange) : [];
+  const borders = Array.from(new Set(flowFiltered.map(r => r.border)));
+  const borderColors = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4"];
+
+  useEffect(() => {
+    if (fuelTypes.length > 0 && selectedFuels.size === 0) {
+      setSelectedFuels(new Set(fuelTypes));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fuelTypes.join(",")]);
+
+  useEffect(() => {
+    if (borders.length > 0 && selectedBorders.size === 0) {
+      setSelectedBorders(new Set(borders));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [borders.join(",")]);
+
+  const toggleFuel = (fuel: string) => {
+    setSelectedFuels(prev => {
+      const next = new Set(prev);
+      next.has(fuel) ? next.delete(fuel) : next.add(fuel);
+      return next;
+    });
+  };
+  const toggleBorder = (border: string) => {
+    setSelectedBorders(prev => {
+      const next = new Set(prev);
+      next.has(border) ? next.delete(border) : next.add(border);
+      return next;
+    });
+  };
+
+  const selectAllFuels = () => setSelectedFuels(new Set(fuelTypes));
+  const clearAllFuels = () => setSelectedFuels(new Set());
+  const selectAllBorders = () => setSelectedBorders(new Set(borders));
+  const clearAllBorders = () => setSelectedBorders(new Set());
 
   if (error) {
     return (
@@ -75,7 +171,6 @@ export default function GridTab() {
 
   const loadData = filterByDays(snap.load, loadRange);
 
-  const genFiltered = filterByDays(snap.generation, genRange);
   const genByTime = new Map<string, Record<string, number | string>>();
   for (const row of genFiltered) {
     if (!genByTime.has(row.t)) genByTime.set(row.t, { t: row.t });
@@ -84,9 +179,7 @@ export default function GridTab() {
   const genData = Array.from(genByTime.values()).sort((a, b) =>
     new Date(a.t as string).getTime() - new Date(b.t as string).getTime()
   );
-  const fuelTypes = Array.from(new Set(genFiltered.map(r => r.fuel)));
 
-  const flowFiltered = filterByDays(snap.crossborder, flowRange);
   const flowByTime = new Map<string, Record<string, number | string>>();
   for (const row of flowFiltered) {
     if (!flowByTime.has(row.t)) flowByTime.set(row.t, { t: row.t });
@@ -95,8 +188,6 @@ export default function GridTab() {
   const flowData = Array.from(flowByTime.values()).sort((a, b) =>
     new Date(a.t as string).getTime() - new Date(b.t as string).getTime()
   );
-  const borders = Array.from(new Set(flowFiltered.map(r => r.border)));
-  const borderColors = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4"];
 
   return (
     <div className="space-y-6">
@@ -119,19 +210,25 @@ export default function GridTab() {
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="text-lg font-semibold text-gray-900">Generation by Fuel Type</h2>
-          <RangeSelector value={genRange} onChange={setGenRange} />
+          <div className="flex items-center gap-3">
+            <SeriesFilterDropdown
+              options={fuelTypes} selected={selectedFuels} onToggle={toggleFuel}
+              onSelectAll={selectAllFuels} onClearAll={clearAllFuels} colors={FUEL_COLORS}
+              isOpen={genFilterOpen} setIsOpen={setGenFilterOpen} label="Fuels"
+            />
+            <RangeSelector value={genRange} onChange={setGenRange} />
+          </div>
         </div>
-        <div className="w-full h-[350px]">
+        <div className="w-full h-[380px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={genData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="t" tickFormatter={fmtAxis} tick={{ fontSize: 11, fill: "#6b7280" }} />
               <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} label={{ value: "MW", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#6b7280" } }} />
               <Tooltip labelFormatter={(l) => fmtAxis(String(l))} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              {fuelTypes.map(fuel => (
+              {fuelTypes.filter(f => selectedFuels.has(f)).map(fuel => (
                 <Area
                   key={fuel} type="monotone" dataKey={fuel} stackId="1"
                   stroke={FUEL_COLORS[fuel] ?? "#9ca3af"} fill={FUEL_COLORS[fuel] ?? "#9ca3af"}
@@ -143,34 +240,39 @@ export default function GridTab() {
         </div>
       </section>
 
-      {flowData.length > 0 ? (
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Cross-Border Flows</h2>
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 className="text-lg font-semibold text-gray-900">Cross-Border Flows</h2>
+          <div className="flex items-center gap-3">
+            <SeriesFilterDropdown
+              options={borders} selected={selectedBorders} onToggle={toggleBorder}
+              onSelectAll={selectAllBorders} onClearAll={clearAllBorders}
+              colors={Object.fromEntries(borders.map((b, i) => [b, borderColors[i % borderColors.length]]))}
+              isOpen={flowFilterOpen} setIsOpen={setFlowFilterOpen} label="Borders"
+            />
             <RangeSelector value={flowRange} onChange={setFlowRange} />
           </div>
-          <div className="w-full h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={flowData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="t" tickFormatter={fmtAxis} tick={{ fontSize: 11, fill: "#6b7280" }} />
-                <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} label={{ value: "MW", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#6b7280" } }} />
-                <Tooltip labelFormatter={(l) => fmtAxis(String(l))} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                {borders.map((border, i) => (
-                  <Line
-                    key={border} type="monotone" dataKey={border}
-                    stroke={borderColors[i % borderColors.length]} dot={false} strokeWidth={1.5}
-                  />
-                ))}
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="mt-3 text-xs text-gray-400">
-            Positive-direction pairs (e.g. SE1→FI and FI→SE1) show import/export separately.
-          </p>
-        </section>
-      ) : null}
+        </div>
+        <div className="w-full h-[380px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={flowData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="t" tickFormatter={fmtAxis} tick={{ fontSize: 11, fill: "#6b7280" }} />
+              <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} label={{ value: "MW", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#6b7280" } }} />
+              <Tooltip labelFormatter={(l) => fmtAxis(String(l))} />
+              {borders.filter(b => selectedBorders.has(b)).map((border, i) => (
+                <Line
+                  key={border} type="monotone" dataKey={border}
+                  stroke={borderColors[i % borderColors.length]} dot={false} strokeWidth={1.5}
+                />
+              ))}
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="mt-3 text-xs text-gray-400">
+          Positive-direction pairs (e.g. SE1→FI and FI→SE1) show import/export separately.
+        </p>
+      </section>
     </div>
   );
 }
