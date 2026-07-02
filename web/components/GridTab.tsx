@@ -179,7 +179,7 @@ function SeriesFilterDropdown({
       {isOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-20 p-3">
+          <div className="absolute right-0 left-0 sm:left-auto mt-2 w-auto sm:w-64 max-w-[90vw] bg-white border border-gray-200 rounded-xl shadow-lg z-20 p-3">
             <div className="flex gap-2 mb-2 pb-2 border-b border-gray-100">
               <button onClick={onSelectAll} className="text-xs text-blue-600 hover:underline">{selectAllLabel}</button>
               <button onClick={onClearAll} className="text-xs text-blue-600 hover:underline">{clearAllLabel}</button>

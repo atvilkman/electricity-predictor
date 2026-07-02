@@ -246,7 +246,7 @@ export default function ForecastChart({ snap }: { snap: Snapshot }) {
                   <g>
                     <circle cx={cx} cy={cy} r={7} fill="#ffffff" stroke="#1f77b4" strokeWidth={2.5} />
                     <circle cx={cx} cy={cy} r={3} fill="#1f77b4" />
-                    <text x={cx + 12} y={cy - 8} fill="#1f77b4" fontSize={13} fontWeight={600}>
+                    <text x={cx + 8} y={cy - 18} fill="#1f77b4" fontSize={12} fontWeight={600}>
                       {props.payload.current.toFixed(2)} snt/kWh
                     </text>
                   </g>
