@@ -1,0 +1,210 @@
+"use client";
+import { createContext, useContext, useState, type ReactNode } from "react";
+
+type Lang = "en" | "fi";
+
+const en = {
+  appTitle: "Finnish Electricity Spot Price",
+  appSubtitle: "Rolling forecast: known ~36h + predicted 5 days.",
+  generatedPrefix: "Generated",
+  priceNote: "Prices are raw wholesale spot (excl. ALV / VAT and retailer margin).",
+  tabForecast: "Forecast",
+  tabVsActual: "Forecast vs Actual",
+  tabAccuracy: "Accuracy",
+  tabGrid: "Grid",
+  tabAbout: "About",
+  bandNote: "Shaded band = typical historical error for that horizon (mean absolute error from backtesting).",
+  tooltipKnown: "Known price",
+  tooltipForecast: "Forecast",
+  tooltipRange: "Typical range",
+  thresholdCheap: "Cheap threshold",
+  thresholdExpensive: "Expensive threshold",
+  refNow: "Now",
+  metricCurrentPrice: "Current price",
+  hintLatestKnown: "Latest known hour",
+  metricCheapest: "Cheapest",
+  metricAverage: "Average",
+  metricMostExpensive: "Most expensive",
+  hintCurrent36h: "Current 36h window",
+  vsActualTitle: "Frozen forecasts vs what actually happened",
+  vsActualEmpty: "Not enough history yet. This view fills in as daily forecasts graduate into known actuals — check back after a few days of automated runs.",
+  accuracyTitle: "Accuracy: model vs naive-week baseline, by horizon",
+  accuracyEmpty: "No scored predictions yet. Accuracy fills in once daily forecasts graduate into known actuals — needs several days of automated runs.",
+  gridLoadTitle: "Actual Load",
+  gridGenerationTitle: "Generation by Fuel Type",
+  gridCrossborderTitle: "Cross-Border Flows",
+  gridSustainabilityTitle: "Sustainability Mix",
+  gridLast7: "Last 7 days",
+  gridLast30: "Last 30 days",
+  gridLast180: "Last 180 days",
+  gridRenewable: "Renewable",
+  gridNuclear: "Nuclear",
+  gridFossil: "Fossil",
+  gridCarbonIntensity: "Carbon Intensity",
+  gridFuelsLabel: "Fuels",
+  gridBordersLabel: "Borders",
+  gridSelectAll: "Select all",
+  gridClearAll: "Clear all",
+  gridCrossborderNote: "Positive-direction pairs (e.g. SE1→FI and FI→SE1) show import/export separately.",
+  gridCo2Footnote: "Carbon intensity uses standard lifecycle emission factors (gCO₂/kWh), not real-time plant measurements.",
+  aboutHeading: "How this app works",
+  aboutIntro: "Plain-English guide to every tab, where its data comes from, and how it’s calculated.",
+  aboutForecastTitle: "Forecast tab",
+  aboutForecastP1: "The known ~36 hours are real, already-published prices from the Nord Pool day-ahead auction (via porssisahko.net) — not predictions.",
+  aboutForecastP2: "The predicted 5 days beyond that come from a machine-learning model (LightGBM) trained on over a year of historical prices, weather, and grid data. Five separate models are trained — one per forecast day (N+1 to N+5) — each using only inputs that would genuinely be known that far in advance.",
+  aboutForecastP3: "Inputs used: hour/day/month/holiday calendar features, price 24h and 168h ago, rolling price averages, live weather forecasts (Open-Meteo, Helsinki + Vaasa), Fingrid consumption and wind forecasts, and Fingrid nuclear production.",
+  aboutForecastP4: "The shaded blue band is the model’s typical historical error for that horizon (from backtesting) — not a statistical confidence interval, just “how wrong has this horizon usually been.”",
+  aboutVsActualTitle: "Forecast vs Actual tab",
+  aboutVsActualP1: "Every forecast is frozen the moment it’s made and never overwritten. Once a predicted hour actually happens, the real price is looked up and matched against what was predicted for it. This tab compares the two, honestly — including the misses.",
+  aboutAccuracyTitle: "Accuracy tab",
+  aboutAccuracyP1: "Aggregates the Forecast vs Actual data into mean absolute error (MAE) per horizon (N+1 to N+5), compared against a naive baseline (“price = same hour last week”). If the model can’t beat that simple baseline, it isn’t earning its keep — this tab is the honest scorecard.",
+  aboutGridTitle: "Grid tab",
+  aboutGridP1: "Purely informational — none of this feeds into the price forecast. It shows Finland’s actual electricity system data from the ENTSO-E Transparency Platform, the official EU-wide source all national grid operators (including Fingrid) report to.",
+  aboutGridLoad: "Actual Load — real measured electricity demand in Finland, hourly.",
+  aboutGridGen: "Generation by Fuel Type — how much electricity came from each source (nuclear, wind, hydro, fossil, etc.), hourly.",
+  aboutGridFlows: "Cross-Border Flows — electricity physically moved between Finland and Sweden (SE1, SE3) and Estonia (EE).",
+  aboutGridSustain: "Sustainability Mix & Carbon Intensity — fuel types grouped into Renewable, Nuclear, and Fossil, weighted by standard lifecycle emission factors (gCO₂/kWh) to estimate average carbon intensity. These are established reference values, not live plant-level measurements.",
+  aboutAiTitle: "Is any of this generated by an AI/LLM?",
+  aboutAiP1: "No. No language model writes or alters any number shown anywhere in this app. Every price, forecast, and grid figure comes directly from the sources above, processed by fixed, deterministic code (Python + LightGBM for the forecast, plain arithmetic for the Grid tab). An AI assistant (Claude) was used as a coding tool to help build the application — the same way a developer might use it to write code — but it does not run live, does not see your data, and has no role in producing any number you see.",
+  aboutAiP2: "To be precise about what \"AI\" means in two different contexts here: (1) LightGBM is a gradient-boosted decision tree algorithm — a form of machine learning, but not a language model. It has no language understanding; it only learns numeric patterns from historical data. (2) Claude, a large language model, was used only as a coding assistant during development to write and debug the Python and TypeScript code — it never sees live data and has no runtime role.",
+  aboutAiP3: "How the LightGBM model is trained: each of the 5 horizon models (N+1–N+5) learns from roughly 13,000 hours of historical data. For every past hour, the model is shown the inputs that would have been known at that horizon (calendar position, price lags, weather, grid data) and the actual price that followed. Over many training passes, it learns which combinations of inputs tend to precede higher or lower prices. It is retrained daily as new data arrives, so it continuously adapts to recent patterns.",
+  aboutAiP4: "The model does not \"understand\" electricity markets the way a person would — it has no concept of supply, demand, or causation. It only recognizes statistical patterns in the specific variables it was given. This is why it is evaluated against a naive baseline every day: to keep the pattern-matching honest.",
+  aboutLimitationsTitle: "Honest limitations",
+  aboutLimit1: "Unplanned nuclear or transmission outages are not modeled.",
+  aboutLimit2: "Nordic hydro reservoir levels and gas prices — real drivers of the price floor and ceiling — are not freely accessible and not included.",
+  aboutLimit3: "Day 1–2 forecasts are usually good. Days 3–5 degrade steadily.",
+  aboutLimit4: "Prices shown are raw wholesale spot prices in snt/kWh — excl. ALV (VAT), retailer margin, and transfer fees.",
+  aboutLimit5: "Carbon intensity uses standard emission factors, not real-time plant measurements.",
+  aboutRefreshTitle: "Refresh cadence",
+  aboutRefreshP1: "A GitHub Actions workflow refreshes all data once daily at 14:15 EET, right after Nord Pool publishes tomorrow’s prices. Each daily forecast is frozen at generation, so accuracy can be measured fairly against actuals as they materialize.",
+  footerPoweredBy: "Powered by Claude & AT von Vilkman",
+} as const;
+
+type TranslationKey = keyof typeof en;
+
+const fi: Record<TranslationKey, string> = {
+  appTitle: "Suomen sähkön spot-hinta",
+  appSubtitle: "Rullaava ennuste: ~36h tunnettu + 5 päivän ennuste.",
+  generatedPrefix: "Luotu",
+  priceNote: "Hinnat ovat raakoja tukkuspot-hintoja (alv ja jälleenmyyjän marginaali ei sisälly).",
+  tabForecast: "Ennuste",
+  tabVsActual: "Ennuste vs. toteuma",
+  tabAccuracy: "Tarkkuus",
+  tabGrid: "Sähköverkko",
+  tabAbout: "Tietoja",
+  bandNote: "Varjostettu alue = tyypillinen historiallinen virhe kyseisellä horisontilla (MAE taaksepäin testauksesta).",
+  tooltipKnown: "Tunnettu hinta",
+  tooltipForecast: "Ennuste",
+  tooltipRange: "Tyypillinen vaihteleväli",
+  thresholdCheap: "Halpa-raja",
+  thresholdExpensive: "Kallis-raja",
+  refNow: "Nyt",
+  metricCurrentPrice: "Nykyinen hinta",
+  hintLatestKnown: "Viimeisin tunnettu tunti",
+  metricCheapest: "Halvin",
+  metricAverage: "Keskiarvo",
+  metricMostExpensive: "Kallein",
+  hintCurrent36h: "Nykyinen 36h ikkuna",
+  vsActualTitle: "Jäädytetyt ennusteet vs. toteutuma",
+  vsActualEmpty: "Historia ei vielä riitä. Tämä näkymä täydentyä päivittäisten ennusteiden saadessa todelliset hinnat — tarkista muutaman päivän kuluttua.",
+  accuracyTitle: "Tarkkuus: malli vs. naiivi viikkobaseline, horisonteittain",
+  accuracyEmpty: "Ei vielä pisteytettyä ennustetta. Tarkkuus täydentyä ennusteiden saadessa todelliset hinnat — tarvitaan useita päiviä automatisoidusta ajosta.",
+  gridLoadTitle: "Todellinen kulutus",
+  gridGenerationTitle: "Tuotanto polttoainetyypeittäin",
+  gridCrossborderTitle: "Rajaylitysvirrat",
+  gridSustainabilityTitle: "Tuotantomix ja kestävyys",
+  gridLast7: "Viimeiset 7 päivää",
+  gridLast30: "Viimeiset 30 päivää",
+  gridLast180: "Viimeiset 180 päivää",
+  gridRenewable: "Uusiutuva",
+  gridNuclear: "Ydinvoima",
+  gridFossil: "Fossiilinen",
+  gridCarbonIntensity: "Hiili-intensiteetti",
+  gridFuelsLabel: "Polttoaineet",
+  gridBordersLabel: "Rajat",
+  gridSelectAll: "Valitse kaikki",
+  gridClearAll: "Tyhjenmä kaikki",
+  gridCrossborderNote: "Positiiviset suuntaparit (esim. SE1→FI ja FI→SE1) näyttävät tuonnin ja viennin erikseen.",
+  gridCo2Footnote: "Hiili-intensiteetti perustuu standardeihin elinkaariemissio­kertoimiin (g CO₂/kWh), ei reaaliaikaisiin voimalamittauksiin.",
+  aboutHeading: "Miten tämä sovellus toimii",
+  aboutIntro: "Selkokielinen opas jokaisesta välilehdestä: mistä data tulee ja miten se lasketaan.",
+  aboutForecastTitle: "Ennuste-välilehti",
+  aboutForecastP1: "Tunnetut ~36 tuntia ovat todellisia, jo julkaistuja hintoja Nord Poolin päiväahead-huutokaupasta (porssisahko.net kautta) — ei ennusteita.",
+  aboutForecastP2: "Sitä seuraavat 5 ennustettua päivää perustuvat koneoppimismalliin (LightGBM), joka on koulutettu yli vuoden historiallisilla hinnoilla, säällä ja verkkodatalla. Viisi erillistä mallia — yksi kutakin ennustepäivää kohden (N+1–N+5) — joista kukin käyttää vain sellaisia syötteitä, jotka tosiasiassa olisivat tiedossa niin kauas etukäteen.",
+  aboutForecastP3: "Käytetyt syötteet: tunti/viikonpäivä/kuukausi/pyhäpäivä-kalenteripiirteet, hinta 24h ja 168h sitten, liukuva hintakeskiarvo, live-säätiedot (Open-Meteo, Helsinki + Vaasa), Fingridin kulutus- ja tuuliennusteet sekä Fingridin ydintuotanto.",
+  aboutForecastP4: "Varjostettu sininen alue on mallin tyypillinen historiallinen virhe kyseisellä horisontilla (taaksepäin testauksesta) — ei tilastollinen luottamusväli, vaan arvio siitä kuinka väärässä malli on tyypillisesti ollut.",
+  aboutVsActualTitle: "Ennuste vs. toteuma -välilehti",
+  aboutVsActualP1: "Jokainen ennuste jäädytetään luontihetkellä eikä sitä koskaan ylikirjoiteta. Kun ennustettu tunti toteutuu, todellinen hinta haetaan ja verrataan ennustettuun. Tämä välilehti vertailee niitä rehellisesti — myös virheelliset tapaukset.",
+  aboutAccuracyTitle: "Tarkkuus-välilehti",
+  aboutAccuracyP1: "Kokoaa Ennuste vs. toteuma -datan keskimääräiseksi absoluuttivirheeksi (MAE) horisonteittain (N+1–N+5), vertailtuna naiiivibaselineen (”hinta = sama tunti viime viikolla”). Jos malli ei pysty voittamaan tätä yksinkertaista baselinea, se ei ansaitse paikkaansa — tämä välilehti on rehellinen tuloskortti.",
+  aboutGridTitle: "Sähköverkko-välilehti",
+  aboutGridP1: "Täysin informatiivinen — mikään tästä ei syötä hintaennustetta. Se näyttää Suomen todellisen sähköjärjestelmän datan ENTSO-E-läpinäkyvyysalustalta, joka on virallinen EU:n laajuinen lähde, johon kaikki kansalliset verkonhaltijat (mukaan lukien Fingrid) raportoivat.",
+  aboutGridLoad: "Todellinen kulutus — Suomen mitattu sähkönkulutus tunneittain.",
+  aboutGridGen: "Tuotanto polttoainetyypeittäin — kuinka paljon sähköä tuli kustakin lähteestä (ydin, tuuli, vesi, fossiilinen jne.) tunneittain.",
+  aboutGridFlows: "Rajaylitysvirrat — Suomen ja Ruotsin (SE1, SE3) sekä Viron (EE) välillä fyysisesti siirretty sähkö.",
+  aboutGridSustain: "Tuotantomix ja hiili-intensiteetti — polttoainetyypit ryhmelty uusiutuviin, ydinvoimaan ja fossiilisiin, painotettuna standardin elinkaariemissiokertoimilla (gCO₂/kWh). Nämä ovat vakiintuneita viitearvoja, ei reaaliaikaisia voimalamittauksia.",
+  aboutAiTitle: "Onko mikään tässä tekoälyn/LLM:n tuottamaa?",
+  aboutAiP1: "Ei. Mikään kielimalli ei kirjoita tai muuta yhtään numeroa tässä sovelluksessa. Jokainen hinta, ennuste ja verkkoluku tulee suoraan yllä olevista lähteistä, kiinteän deterministisen koodin käsittellemänä. Tekoälyavustaja (Claude) toimi koodaustyökaluna sovelluksen rakentamisessa — samaan tapaan kuin kehittäjä saattaisi käyttää sitä koodin kirjoittamiseen — mutta se ei toimi livenä eikä sillä ole roolia tuottaa yhtäkään näkemääsi numeroa.",
+  aboutAiP2: "Tarkennus siitä, mitä \"tekoäly\" tässä yhteydessä tarkoittaa kahdella eri tavalla: (1) LightGBM on gradient-boosted päätöspuualgoritmi — koneoppimisen muoto, mutta ei kielimalli. Sillä ei ole kielenymmärrystä; se oppii vain numeerisia kaavoja historiallisesta datasta. (2) Claudea, suurta kielimallia, käytettiin ainoastaan koodausavustajana kehitystyön aikana Python- ja TypeScript-koodin kirjoittamiseen ja virheenkorjaukseen — se ei koskaan näe livedataa eikä sillä ole roolia sovelluksen ajonaikaisessa toiminnassa.",
+  aboutAiP3: "Näin LightGBM-mallia koulutetaan: jokainen viidestä horisonttimallista (N+1–N+5) oppii noin 13 000 tunnin historiallisesta datasta. Jokaiselle menneelle tunnille mallille näytetään syötteet, jotka olisivat olleet tiedossa kyseisellä horisontilla (kalenteriasema, hintaviiveet, sää, verkkodata) sekä toteutunut hinta. Useiden koulutuskierrosten aikana malli oppii, mitkä syöteyhdistelmät tyypillisesti ennakoivat korkeampia tai matalampia hintoja. Malli koulutetaan uudelleen päivittäin uuden datan saapuessa, joten se mukautuu jatkuvasti tuoreisiin kaavoihin.",
+  aboutAiP4: "Malli ei \"ymmärrä\" sähkömarkkinoita ihmisen tavoin — sillä ei ole käsitystä kysynnästä, tarjonnasta tai syy-seuraussuhteista. Se tunnistaa vain tilastollisia kaavoja niissä muuttujissa, jotka sille on annettu. Tämän vuoksi sitä verrataan päivittäin naiiviin perustasoon — jotta kaavantunnistus pysyy rehellisenä.",
+  aboutLimitationsTitle: "Rehelliset rajoitukset",
+  aboutLimit1: "Suunnittelemattomia ydin- tai siirtoverkkokatkoja ei mallinneta.",
+  aboutLimit2: "Pohjoismaiden vesivarastojen tasot ja kaasuhinnat — todellisia hintalaättian ja -katon ajureita — eivät ole vapaasti saatavilla eikä niitä ole sisällytetty.",
+  aboutLimit3: "1–2 päivän ennusteet ovat yleensä hyviä. Päivät 3–5 heikkenevät tasaisesti.",
+  aboutLimit4: "Näytetyt hinnat ovat raakoja tukkuspot-hintoja snt/kWh — alv, jälleenmyyjän marginaali ja siirtomaksut eivät sisälly.",
+  aboutLimit5: "Hiili-intensiteetti käyttää standardien emissio­kertoimia, ei reaaliaikaisia voimalamittauksia.",
+  aboutRefreshTitle: "Päivitystaajuus",
+  aboutRefreshP1: "GitHub Actions -työnkulku päivittää kaiken datan kerran päivässä klo 14:15 EET, heti kun Nord Pool on julkaissut huomisen hinnat. Jokainen päivittäinen ennuste jäädytetään luontihetkellä, jotta tarkkuutta voidaan mitata rehellisesti toteumia vastaan niiden materialisoituessa.",
+  footerPoweredBy: "Toteutettu Clauden & AT von Vilkmanin voimin",
+};
+
+const FUEL_NAMES: Record<string, Record<Lang, string>> = {
+  "Nuclear":                          { en: "Nuclear",                          fi: "Ydinvoima" },
+  "Wind Onshore":                     { en: "Wind Onshore",                     fi: "Tuulivoima (maa)" },
+  "Wind Offshore":                    { en: "Wind Offshore",                    fi: "Tuulivoima (meri)" },
+  "Hydro Water Reservoir":            { en: "Hydro Water Reservoir",            fi: "Vesivoimavarasto" },
+  "Hydro Run-of-river and poundage":  { en: "Hydro Run-of-river and poundage", fi: "Jokivesivoima" },
+  "Hydro Pumped Storage":             { en: "Hydro Pumped Storage",             fi: "Pumppuvarastovoima" },
+  "Fossil Gas":                       { en: "Fossil Gas",                       fi: "Maakaasu" },
+  "Fossil Hard coal":                 { en: "Fossil Hard coal",                 fi: "Kivihiili" },
+  "Fossil Oil":                       { en: "Fossil Oil",                       fi: "Öljy" },
+  "Fossil Peat":                      { en: "Fossil Peat",                      fi: "Turve" },
+  "Fossil Brown coal/Lignite":        { en: "Fossil Brown coal/Lignite",        fi: "Ruskohiili" },
+  "Biomass":                          { en: "Biomass",                          fi: "Biomassa" },
+  "Solar":                            { en: "Solar",                            fi: "Aurinkovoima" },
+  "Waste":                            { en: "Waste",                            fi: "Jätteet" },
+  "Other renewable":                  { en: "Other renewable",                  fi: "Muu uusiutuva" },
+  "Energy storage":                   { en: "Energy storage",                   fi: "Energiavarasto" },
+  "Other":                            { en: "Other",                            fi: "Muu" },
+};
+
+export function translateFuel(fuel: string, lang: Lang): string {
+  return FUEL_NAMES[fuel]?.[lang] ?? fuel;
+}
+
+type LanguageContextType = {
+  lang: Lang;
+  setLang: (l: Lang) => void;
+  t: (key: TranslationKey) => string;
+};
+
+const LanguageContext = createContext<LanguageContextType>({
+  lang: "en",
+  setLang: () => {},
+  t: (key) => en[key],
+});
+
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const [lang, setLang] = useState<Lang>("en");
+  const t = (key: TranslationKey): string => (lang === "fi" ? fi : en)[key];
+  return (
+    <LanguageContext.Provider value={{ lang, setLang, t }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+}
+
+export function useLanguage() {
+  return useContext(LanguageContext);
+}

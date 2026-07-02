@@ -4,6 +4,7 @@ import {
   Tooltip, ReferenceLine, ResponsiveContainer, Scatter, LabelList,
 } from "recharts";
 import type { Snapshot } from "@/lib/data";
+import { useLanguage } from "@/lib/i18n";
 
 type Point = {
   t: number;
@@ -57,6 +58,7 @@ function ForecastTooltip(props: {
   active?: boolean;
   payload?: readonly TooltipEntry[];
 }) {
+  const { t } = useLanguage();
   const { active, payload } = props;
   if (!active || !payload || payload.length === 0) return null;
 
@@ -78,7 +80,7 @@ function ForecastTooltip(props: {
 
   if (row.known !== undefined) {
     rows.push({
-      label: "Known price",
+      label: t("tooltipKnown"),
       value: `${row.known.toFixed(2)} snt/kWh`,
       color: "#1f77b4",
     });
@@ -87,13 +89,13 @@ function ForecastTooltip(props: {
   // Bridge point has forecast set to the known value — skip showing "Forecast" for it
   if (row.forecast !== undefined && !row.isForecastBridge) {
     rows.push({
-      label: "Forecast",
+      label: t("tooltipForecast"),
       value: `${row.forecast.toFixed(2)} snt/kWh`,
       color: "#1f77b4",
     });
     if (row.upper !== undefined && row.lower !== undefined) {
       rows.push({
-        label: "Typical range",
+        label: t("tooltipRange"),
         value: `${row.lower.toFixed(2)} – ${row.upper.toFixed(2)} snt/kWh`,
         color: "#94a3b8",
       });
@@ -123,6 +125,7 @@ function ForecastTooltip(props: {
 }
 
 export default function ForecastChart({ snap }: { snap: Snapshot }) {
+  const { t } = useLanguage();
   const now = Date.now();
 
   const currentKnown = [...snap.known]
@@ -132,16 +135,16 @@ export default function ForecastChart({ snap }: { snap: Snapshot }) {
   const currentT = currentKnown ? new Date(currentKnown.t).getTime() : null;
 
   const knownPts: Point[] = snap.known.map(r => {
-    const t = new Date(r.t).getTime();
+    const ts = new Date(r.t).getTime();
     return {
-      t,
+      t: ts,
       known: r.p,
       knownArea: r.p,
       forecast: undefined,
       upper: undefined,
       lower: undefined,
       // current only set on the one matching timestamp — Scatter renders there
-      current: currentT === t ? r.p : undefined,
+      current: currentT === ts ? r.p : undefined,
     };
   });
 
@@ -187,6 +190,7 @@ export default function ForecastChart({ snap }: { snap: Snapshot }) {
   };
 
   return (
+    <>
     <div className="w-full h-[460px]">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={{ top: 40, right: 40, left: 20, bottom: 20 }}>
@@ -216,15 +220,15 @@ export default function ForecastChart({ snap }: { snap: Snapshot }) {
           <Area dataKey="lower" stroke="none" fill="#ffffff" fillOpacity={1} isAnimationActive={false} legendType="none" {...{ tooltipType: "none" }} />
           <ReferenceLine
             y={snap.thresholds.cheap} stroke="#10b981" strokeDasharray="4 4"
-            label={{ value: "Cheap threshold", position: "insideBottomLeft", fill: "#10b981", fontSize: 11, offset: 15 }}
+            label={{ value: t("thresholdCheap"), position: "insideBottomLeft", fill: "#10b981", fontSize: 11, offset: 15 }}
           />
           <ReferenceLine
             y={snap.thresholds.expensive} stroke="#ef4444" strokeDasharray="4 4"
-            label={{ value: "Expensive threshold", position: "insideTopLeft", fill: "#ef4444", fontSize: 11 }}
+            label={{ value: t("thresholdExpensive"), position: "insideTopLeft", fill: "#ef4444", fontSize: 11 }}
           />
           <ReferenceLine
             x={now} stroke="#374151" strokeDasharray="2 2" strokeWidth={1.5}
-            label={{ value: "Now", position: "top", fill: "#374151", fontSize: 12, fontWeight: 600 }}
+            label={{ value: t("refNow"), position: "top", fill: "#374151", fontSize: 12, fontWeight: 600 }}
           />
           <Area dataKey="knownArea" stroke="none" fill="url(#knownGradient)" isAnimationActive={false} legendType="none" {...{ tooltipType: "none" }} />
           <Line dataKey="known" stroke="#1f77b4" strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls={false} />
@@ -290,5 +294,7 @@ export default function ForecastChart({ snap }: { snap: Snapshot }) {
         </ComposedChart>
       </ResponsiveContainer>
     </div>
+    <p className="mt-3 text-xs text-gray-400">{t("bandNote")}</p>
+    </>
   );
 }

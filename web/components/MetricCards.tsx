@@ -1,6 +1,9 @@
+"use client";
 import type { Snapshot } from "@/lib/data";
+import { useLanguage } from "@/lib/i18n";
 
 export default function MetricCards({ snap }: { snap: Snapshot }) {
+  const { t } = useLanguage();
   const prices = snap.known.map(r => r.p);
   if (prices.length === 0) return null;
   const cheapest = Math.min(...prices);
@@ -20,10 +23,10 @@ export default function MetricCards({ snap }: { snap: Snapshot }) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {current && <Card label="Current price" value={`${current.p.toFixed(2)} snt/kWh`} hint="Latest known hour" />}
-      <Card label="Cheapest" value={`${cheapest.toFixed(2)} snt/kWh`} hint="Current 36h window" />
-      <Card label="Average" value={`${avg.toFixed(2)} snt/kWh`} hint="Current 36h window" />
-      <Card label="Most expensive" value={`${expensive.toFixed(2)} snt/kWh`} hint="Current 36h window" />
+      {current && <Card label={t("metricCurrentPrice")} value={`${current.p.toFixed(2)} snt/kWh`} hint={t("hintLatestKnown")} />}
+      <Card label={t("metricCheapest")} value={`${cheapest.toFixed(2)} snt/kWh`} hint={t("hintCurrent36h")} />
+      <Card label={t("metricAverage")} value={`${avg.toFixed(2)} snt/kWh`} hint={t("hintCurrent36h")} />
+      <Card label={t("metricMostExpensive")} value={`${expensive.toFixed(2)} snt/kWh`} hint={t("hintCurrent36h")} />
     </div>
   );
 }

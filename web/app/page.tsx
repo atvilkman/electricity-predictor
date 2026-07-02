@@ -7,10 +7,12 @@ import EmptyTab from "@/components/EmptyTab";
 import GridTab from "@/components/GridTab";
 import AboutTab from "@/components/AboutTab";
 import { loadSnapshot, type Snapshot } from "@/lib/data";
+import { useLanguage } from "@/lib/i18n";
 
 export default function Home() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { lang, setLang, t } = useLanguage();
 
   useEffect(() => {
     loadSnapshot().then(setSnap).catch(e => setError(String(e)));
@@ -39,11 +41,8 @@ export default function Home() {
   const forecastTab = (
     <div className="space-y-6">
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Forecast</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t("tabForecast")}</h2>
         <ForecastChart snap={snap} />
-        <p className="mt-3 text-xs text-gray-400">
-          Shaded band = typical historical error for that horizon (mean absolute error from backtesting).
-        </p>
       </section>
       <MetricCards snap={snap} />
     </div>
@@ -53,31 +52,42 @@ export default function Home() {
     <main className="mx-auto max-w-6xl px-6 py-10 space-y-8">
       <header className="space-y-2">
         <h1 className="text-4xl font-bold tracking-tight text-gray-900">
-          Finnish Electricity Spot Price
+          {t("appTitle")}
         </h1>
         <p className="text-gray-500">
-          Rolling forecast: known ~36h + predicted 5 days.
+          {t("appSubtitle")}
         </p>
         <p className="text-xs text-gray-400">
-          Generated {generated} · Prices are raw wholesale spot (excl. ALV / VAT and retailer margin).
+          {t("generatedPrefix")} {generated} · {t("priceNote")}
         </p>
+        <div className="flex gap-2 pt-2">
+          <button
+            onClick={() => setLang("en")}
+            className={`px-3 py-1 text-sm rounded-full border ${lang === "en" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300"}`}
+          >
+            EN
+          </button>
+          <button
+            onClick={() => setLang("fi")}
+            className={`px-3 py-1 text-sm rounded-full border ${lang === "fi" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300"}`}
+          >
+            FI
+          </button>
+        </div>
       </header>
 
       <Tabs tabs={[
-        { id: "forecast", label: "Forecast", content: forecastTab },
-        { id: "vs-actual", label: "Forecast vs Actual", content:
-          <EmptyTab
-            title="Frozen forecasts vs what actually happened"
-            message="Not enough history yet. This view fills in as daily forecasts graduate into known actuals — check back after a few days of automated runs."
-          /> },
-        { id: "accuracy", label: "Accuracy", content:
-          <EmptyTab
-            title="Accuracy: model vs naive-week baseline, by horizon"
-            message="No scored predictions yet. Accuracy fills in once daily forecasts graduate into known actuals — needs several days of automated runs."
-          /> },
-        { id: "grid", label: "Grid", content: <GridTab /> },
-        { id: "about", label: "About", content: <AboutTab /> },
+        { id: "forecast", label: t("tabForecast"), content: forecastTab },
+        { id: "vs-actual", label: t("tabVsActual"), content:
+          <EmptyTab title={t("vsActualTitle")} message={t("vsActualEmpty")} /> },
+        { id: "accuracy", label: t("tabAccuracy"), content:
+          <EmptyTab title={t("accuracyTitle")} message={t("accuracyEmpty")} /> },
+        { id: "grid", label: t("tabGrid"), content: <GridTab /> },
+        { id: "about", label: t("tabAbout"), content: <AboutTab /> },
       ]} />
+      <footer className="mt-12 pb-8 text-center text-xs text-gray-400">
+        {t("footerPoweredBy")}
+      </footer>
     </main>
   );
 }

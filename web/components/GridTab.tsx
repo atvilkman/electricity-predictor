@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import {
-  ComposedChart, AreaChart, Area, Line, XAxis, YAxis, CartesianGrid,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from "recharts";
 import { loadGridSnapshot, filterByDays, type GridSnapshot } from "@/lib/gridData";
+import { useLanguage, translateFuel } from "@/lib/i18n";
 
 type RangeOption = 7 | 30 | 180;
 
@@ -20,6 +21,8 @@ const FUEL_COLORS: Record<string, string> = {
   "Solar": "#eab308",
   "Other": "#9ca3af",
 };
+
+const BORDER_COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4"];
 
 const FUEL_CATEGORY: Record<string, "renewable" | "nuclear" | "fossil"> = {
   "Wind Onshore": "renewable",
@@ -67,18 +70,12 @@ function computeSustainabilityShares(
 ): { renewable: number; nuclear: number; fossil: number } {
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
   const filtered = generation.filter(r => new Date(r.t).getTime() >= cutoff);
-
   const totals = { renewable: 0, nuclear: 0, fossil: 0 };
   let grandTotal = 0;
-
   for (const row of filtered) {
     const cat = FUEL_CATEGORY[row.fuel] ?? "fossil";
-    if (row.mw > 0) {
-      totals[cat] += row.mw;
-      grandTotal += row.mw;
-    }
+    if (row.mw > 0) { totals[cat] += row.mw; grandTotal += row.mw; }
   }
-
   if (grandTotal === 0) return { renewable: 0, nuclear: 0, fossil: 0 };
   return {
     renewable: (totals.renewable / grandTotal) * 100,
@@ -93,7 +90,6 @@ function computeCarbonIntensity(
 ): number {
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
   const filtered = generation.filter(r => new Date(r.t).getTime() >= cutoff);
-
   let weightedSum = 0;
   let totalMw = 0;
   for (const row of filtered) {
@@ -136,9 +132,7 @@ function SustainabilityCard({ label, value, color }: { label: string; value: num
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
-      <div className="mt-2 text-3xl font-semibold" style={{ color }}>
-        {value.toFixed(1)}%
-      </div>
+      <div className="mt-2 text-3xl font-semibold" style={{ color }}>{value.toFixed(1)}%</div>
     </div>
   );
 }
@@ -148,9 +142,7 @@ function CarbonCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
-      <div className="mt-2 text-3xl font-semibold" style={{ color }}>
-        {value.toFixed(0)}
-      </div>
+      <div className="mt-2 text-3xl font-semibold" style={{ color }}>{value.toFixed(0)}</div>
       <div className="text-xs text-gray-400">gCO₂/kWh</div>
     </div>
   );
@@ -158,6 +150,9 @@ function CarbonCard({ label, value }: { label: string; value: number }) {
 
 function SeriesFilterDropdown({
   options, selected, onToggle, onSelectAll, onClearAll, colors, isOpen, setIsOpen, label,
+  getLabel = (opt: string) => opt,
+  selectAllLabel = "Select all",
+  clearAllLabel = "Clear all",
 }: {
   options: string[];
   selected: Set<string>;
@@ -168,6 +163,9 @@ function SeriesFilterDropdown({
   isOpen: boolean;
   setIsOpen: (v: boolean) => void;
   label: string;
+  getLabel?: (opt: string) => string;
+  selectAllLabel?: string;
+  clearAllLabel?: string;
 }) {
   return (
     <div className="relative">
@@ -183,8 +181,8 @@ function SeriesFilterDropdown({
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-20 p-3">
             <div className="flex gap-2 mb-2 pb-2 border-b border-gray-100">
-              <button onClick={onSelectAll} className="text-xs text-blue-600 hover:underline">Select all</button>
-              <button onClick={onClearAll} className="text-xs text-blue-600 hover:underline">Clear all</button>
+              <button onClick={onSelectAll} className="text-xs text-blue-600 hover:underline">{selectAllLabel}</button>
+              <button onClick={onClearAll} className="text-xs text-blue-600 hover:underline">{clearAllLabel}</button>
             </div>
             <div className="flex flex-col gap-1.5 max-h-[280px] overflow-y-auto">
               {options.map(opt => (
@@ -196,7 +194,7 @@ function SeriesFilterDropdown({
                     className="rounded border-gray-300"
                   />
                   <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: colors[opt] ?? "#9ca3af" }} />
-                  <span className="truncate">{opt}</span>
+                  <span className="truncate">{getLabel(opt)}</span>
                 </label>
               ))}
             </div>
@@ -208,6 +206,7 @@ function SeriesFilterDropdown({
 }
 
 export default function GridTab() {
+  const { t, lang } = useLanguage();
   const [snap, setSnap] = useState<GridSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadRange, setLoadRange] = useState<RangeOption>(7);
@@ -227,7 +226,6 @@ export default function GridTab() {
   const fuelTypes = Array.from(new Set(genFiltered.map(r => r.fuel)));
   const flowFiltered = snap ? filterByDays(snap.crossborder, flowRange) : [];
   const borders = Array.from(new Set(flowFiltered.map(r => r.border)));
-  const borderColors = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4"];
 
   useEffect(() => {
     if (fuelTypes.length > 0 && selectedFuels.size === 0) {
@@ -310,7 +308,7 @@ export default function GridTab() {
     <div className="space-y-6">
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Actual Load</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t("gridLoadTitle")}</h2>
           <RangeSelector value={loadRange} onChange={setLoadRange} />
         </div>
         <div className="w-full h-[300px]">
@@ -327,41 +325,45 @@ export default function GridTab() {
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Sustainability Mix</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t("gridSustainabilityTitle")}</h2>
 
-        <div className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Last 7 days</div>
+        <div className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">{t("gridLast7")}</div>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-          <SustainabilityCard label="Renewable" value={shares7d.renewable} color="#10b981" />
-          <SustainabilityCard label="Nuclear" value={shares7d.nuclear} color="#7c3aed" />
-          <SustainabilityCard label="Fossil" value={shares7d.fossil} color="#78716c" />
-          <CarbonCard label="Carbon Intensity" value={co2_7d} />
+          <SustainabilityCard label={t("gridRenewable")} value={shares7d.renewable} color="#10b981" />
+          <SustainabilityCard label={t("gridNuclear")} value={shares7d.nuclear} color="#7c3aed" />
+          <SustainabilityCard label={t("gridFossil")} value={shares7d.fossil} color="#78716c" />
+          <CarbonCard label={t("gridCarbonIntensity")} value={co2_7d} />
         </div>
 
-        <div className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Last 30 days</div>
+        <div className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">{t("gridLast30")}</div>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-          <SustainabilityCard label="Renewable" value={shares30d.renewable} color="#10b981" />
-          <SustainabilityCard label="Nuclear" value={shares30d.nuclear} color="#7c3aed" />
-          <SustainabilityCard label="Fossil" value={shares30d.fossil} color="#78716c" />
-          <CarbonCard label="Carbon Intensity" value={co2_30d} />
+          <SustainabilityCard label={t("gridRenewable")} value={shares30d.renewable} color="#10b981" />
+          <SustainabilityCard label={t("gridNuclear")} value={shares30d.nuclear} color="#7c3aed" />
+          <SustainabilityCard label={t("gridFossil")} value={shares30d.fossil} color="#78716c" />
+          <CarbonCard label={t("gridCarbonIntensity")} value={co2_30d} />
         </div>
 
-        <div className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Last 180 days</div>
+        <div className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">{t("gridLast180")}</div>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <SustainabilityCard label="Renewable" value={shares180d.renewable} color="#10b981" />
-          <SustainabilityCard label="Nuclear" value={shares180d.nuclear} color="#7c3aed" />
-          <SustainabilityCard label="Fossil" value={shares180d.fossil} color="#78716c" />
-          <CarbonCard label="Carbon Intensity" value={co2_180d} />
+          <SustainabilityCard label={t("gridRenewable")} value={shares180d.renewable} color="#10b981" />
+          <SustainabilityCard label={t("gridNuclear")} value={shares180d.nuclear} color="#7c3aed" />
+          <SustainabilityCard label={t("gridFossil")} value={shares180d.fossil} color="#78716c" />
+          <CarbonCard label={t("gridCarbonIntensity")} value={co2_180d} />
         </div>
+
+        <p className="mt-4 text-xs text-gray-400">{t("gridCo2Footnote")}</p>
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h2 className="text-lg font-semibold text-gray-900">Generation by Fuel Type</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t("gridGenerationTitle")}</h2>
           <div className="flex items-center gap-3">
             <SeriesFilterDropdown
               options={fuelTypes} selected={selectedFuels} onToggle={toggleFuel}
               onSelectAll={selectAllFuels} onClearAll={clearAllFuels} colors={FUEL_COLORS}
-              isOpen={genFilterOpen} setIsOpen={setGenFilterOpen} label="Fuels"
+              isOpen={genFilterOpen} setIsOpen={setGenFilterOpen} label={t("gridFuelsLabel")}
+              getLabel={(fuel) => translateFuel(fuel, lang)}
+              selectAllLabel={t("gridSelectAll")} clearAllLabel={t("gridClearAll")}
             />
             <RangeSelector value={genRange} onChange={setGenRange} />
           </div>
@@ -376,8 +378,9 @@ export default function GridTab() {
               {fuelTypes.filter(f => selectedFuels.has(f)).map(fuel => (
                 <Area
                   key={fuel} type="monotone" dataKey={fuel} stackId="1"
-                  stroke={FUEL_COLORS[fuel] ?? "#9ca3af"} fill={FUEL_COLORS[fuel] ?? "#9ca3af"}
-                  fillOpacity={0.7}
+                  stroke={FUEL_COLORS[fuel] ?? "#9ca3af"}
+                  fill={FUEL_COLORS[fuel] ?? "#9ca3af"}
+                  fillOpacity={0.75}
                 />
               ))}
             </AreaChart>
@@ -387,36 +390,37 @@ export default function GridTab() {
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h2 className="text-lg font-semibold text-gray-900">Cross-Border Flows</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t("gridCrossborderTitle")}</h2>
           <div className="flex items-center gap-3">
             <SeriesFilterDropdown
               options={borders} selected={selectedBorders} onToggle={toggleBorder}
               onSelectAll={selectAllBorders} onClearAll={clearAllBorders}
-              colors={Object.fromEntries(borders.map((b, i) => [b, borderColors[i % borderColors.length]]))}
-              isOpen={flowFilterOpen} setIsOpen={setFlowFilterOpen} label="Borders"
+              colors={Object.fromEntries(borders.map((b, i) => [b, BORDER_COLORS[i % BORDER_COLORS.length]]))}
+              isOpen={flowFilterOpen} setIsOpen={setFlowFilterOpen} label={t("gridBordersLabel")}
+              selectAllLabel={t("gridSelectAll")} clearAllLabel={t("gridClearAll")}
             />
             <RangeSelector value={flowRange} onChange={setFlowRange} />
           </div>
         </div>
-        <div className="w-full h-[380px]">
+        <div className="w-full h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={flowData}>
+            <AreaChart data={flowData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="t" tickFormatter={fmtAxis} tick={{ fontSize: 11, fill: "#6b7280" }} />
               <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} label={{ value: "MW", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#6b7280" } }} />
               <Tooltip labelFormatter={(l) => fmtAxis(String(l))} />
               {borders.filter(b => selectedBorders.has(b)).map((border, i) => (
-                <Line
-                  key={border} type="monotone" dataKey={border}
-                  stroke={borderColors[i % borderColors.length]} dot={false} strokeWidth={1.5}
+                <Area
+                  key={border} type="monotone" dataKey={border} stackId={undefined}
+                  stroke={BORDER_COLORS[i % BORDER_COLORS.length]}
+                  fill={BORDER_COLORS[i % BORDER_COLORS.length]}
+                  fillOpacity={0.2}
                 />
               ))}
-            </ComposedChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
-        <p className="mt-3 text-xs text-gray-400">
-          Positive-direction pairs (e.g. SE1→FI and FI→SE1) show import/export separately.
-        </p>
+        <p className="mt-3 text-xs text-gray-400">{t("gridCrossborderNote")}</p>
       </section>
     </div>
   );

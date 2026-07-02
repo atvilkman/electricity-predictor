@@ -1,103 +1,66 @@
+"use client";
+import { useLanguage } from "@/lib/i18n";
+
 export default function AboutTab() {
+  const { t } = useLanguage();
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm space-y-10">
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-          How this app works
-        </h2>
-        <p className="text-gray-600">
-          Plain-English guide to every tab, where its data comes from, and how it's calculated.
-        </p>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2">{t("aboutHeading")}</h2>
+        <p className="text-gray-600">{t("aboutIntro")}</p>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-900">Forecast tab</h3>
-        <p className="text-gray-700 leading-relaxed">
-          The <span className="font-medium">known ~36 hours</span> are real, already-published prices
-          from the Nord Pool day-ahead auction (via porssisahko.net) — not predictions.
-        </p>
-        <p className="text-gray-700 leading-relaxed">
-          The <span className="font-medium">predicted 5 days</span> beyond that come from a
-          machine-learning model (LightGBM) trained on over a year of historical prices, weather,
-          and grid data. Five separate models are trained — one per forecast day (N+1 to N+5) — each
-          using only inputs that would genuinely be known that far in advance.
-        </p>
-        <p className="text-gray-700 leading-relaxed">
-          Inputs used: hour/day/month/holiday calendar features, price 24h and 168h ago, rolling
-          price averages, live weather forecasts (Open-Meteo, Helsinki + Vaasa), Fingrid consumption
-          and wind forecasts, and Fingrid nuclear production.
-        </p>
-        <p className="text-gray-700 leading-relaxed">
-          The shaded blue band is the model's typical historical error for that horizon (from
-          backtesting) — not a statistical confidence interval, just "how wrong has this horizon
-          usually been."
-        </p>
+        <h3 className="text-lg font-semibold text-gray-900">{t("aboutForecastTitle")}</h3>
+        <p className="text-gray-700 leading-relaxed">{t("aboutForecastP1")}</p>
+        <p className="text-gray-700 leading-relaxed">{t("aboutForecastP2")}</p>
+        <p className="text-gray-700 leading-relaxed">{t("aboutForecastP3")}</p>
+        <p className="text-gray-700 leading-relaxed">{t("aboutForecastP4")}</p>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-900">Forecast vs Actual tab</h3>
-        <p className="text-gray-700 leading-relaxed">
-          Every forecast is frozen the moment it's made and never overwritten. Once a predicted hour
-          actually happens, the real price is looked up and matched against what was predicted for
-          it. This tab compares the two, honestly — including the misses.
-        </p>
+        <h3 className="text-lg font-semibold text-gray-900">{t("aboutVsActualTitle")}</h3>
+        <p className="text-gray-700 leading-relaxed">{t("aboutVsActualP1")}</p>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-900">Accuracy tab</h3>
-        <p className="text-gray-700 leading-relaxed">
-          Aggregates the Forecast vs Actual data into mean absolute error (MAE) per horizon (N+1 to
-          N+5), compared against a naive baseline ("price = same hour last week"). If the model can't
-          beat that simple baseline, it isn't earning its keep — this tab is the honest scorecard.
-        </p>
+        <h3 className="text-lg font-semibold text-gray-900">{t("aboutAccuracyTitle")}</h3>
+        <p className="text-gray-700 leading-relaxed">{t("aboutAccuracyP1")}</p>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-900">Grid tab</h3>
-        <p className="text-gray-700 leading-relaxed">
-          Purely informational — none of this feeds into the price forecast. It shows Finland's
-          actual electricity system data from the <span className="font-medium">ENTSO-E Transparency
-          Platform</span>, the official EU-wide source all national grid operators (including
-          Fingrid) report to.
-        </p>
+        <h3 className="text-lg font-semibold text-gray-900">{t("aboutGridTitle")}</h3>
+        <p className="text-gray-700 leading-relaxed">{t("aboutGridP1")}</p>
         <ul className="list-disc list-inside text-gray-700 space-y-1 pl-2">
-          <li><span className="font-medium">Actual Load</span> — real measured electricity demand in Finland, hourly.</li>
-          <li><span className="font-medium">Generation by Fuel Type</span> — how much electricity came from each source (nuclear, wind, hydro, fossil, etc.), hourly.</li>
-          <li><span className="font-medium">Cross-Border Flows</span> — electricity physically moved between Finland and Sweden (SE1, SE3) and Estonia (EE).</li>
-          <li><span className="font-medium">Sustainability Mix &amp; Carbon Intensity</span> — fuel types grouped into Renewable, Nuclear, and Fossil, weighted by standard lifecycle emission factors (gCO₂/kWh) to estimate average carbon intensity. These are established reference values, not live plant-level measurements.</li>
+          <li><span className="font-medium">{t("aboutGridLoad")}</span></li>
+          <li><span className="font-medium">{t("aboutGridGen")}</span></li>
+          <li><span className="font-medium">{t("aboutGridFlows")}</span></li>
+          <li><span className="font-medium">{t("aboutGridSustain")}</span></li>
         </ul>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-900">Is any of this generated by an AI/LLM?</h3>
-        <p className="text-gray-700 leading-relaxed">
-          No. No language model writes or alters any number shown anywhere in this app. Every price,
-          forecast, and grid figure comes directly from the sources above, processed by fixed,
-          deterministic code (Python + LightGBM for the forecast, plain arithmetic for the Grid tab).
-          An AI assistant (Claude) was used as a coding tool to help build the application — the same
-          way a developer might use it to write code — but it does not run live, does not see your
-          data, and has no role in producing any number you see.
-        </p>
+        <h3 className="text-lg font-semibold text-gray-900">{t("aboutAiTitle")}</h3>
+        <p className="text-gray-700 leading-relaxed">{t("aboutAiP1")}</p>
+        <p className="text-gray-700 leading-relaxed">{t("aboutAiP2")}</p>
+        <p className="text-gray-700 leading-relaxed">{t("aboutAiP3")}</p>
+        <p className="text-gray-700 leading-relaxed">{t("aboutAiP4")}</p>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-900">Honest limitations</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{t("aboutLimitationsTitle")}</h3>
         <ul className="list-disc list-inside text-gray-700 space-y-1 pl-2">
-          <li>Unplanned nuclear or transmission outages are not modeled.</li>
-          <li>Nordic hydro reservoir levels and gas prices — real drivers of the price floor and ceiling — are not freely accessible and not included.</li>
-          <li>Day 1–2 forecasts are usually good. Days 3–5 degrade steadily.</li>
-          <li>Prices shown are raw wholesale spot prices in snt/kWh — excl. ALV (VAT), retailer margin, and transfer fees.</li>
-          <li>Carbon intensity uses standard emission factors, not real-time plant measurements.</li>
+          <li>{t("aboutLimit1")}</li>
+          <li>{t("aboutLimit2")}</li>
+          <li>{t("aboutLimit3")}</li>
+          <li>{t("aboutLimit4")}</li>
+          <li>{t("aboutLimit5")}</li>
         </ul>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-900">Refresh cadence</h3>
-        <p className="text-gray-700 leading-relaxed">
-          A GitHub Actions workflow refreshes all data once daily at 14:15 EET, right after Nord
-          Pool publishes tomorrow's prices. Each daily forecast is frozen at generation, so accuracy
-          can be measured fairly against actuals as they materialize.
-        </p>
+        <h3 className="text-lg font-semibold text-gray-900">{t("aboutRefreshTitle")}</h3>
+        <p className="text-gray-700 leading-relaxed">{t("aboutRefreshP1")}</p>
       </div>
     </section>
   );
