@@ -93,7 +93,7 @@ def append_features(prices: pd.DataFrame):
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
 
     if not Path(FEATURES_PATH).exists():
         print(f"{FEATURES_PATH} not found — run backfill_history.py first.")

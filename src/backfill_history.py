@@ -79,7 +79,7 @@ def fetch_fingrid_history(dataset_id: int, start_iso: str, end_iso: str) -> pd.D
 
 def build_full_features():
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
 
     price_df = pd.read_parquet("data/price_history_hourly.parquet")
     print(f"Price history: {len(price_df)} rows")
