@@ -1,18 +1,27 @@
 """
-generate_forecast.py — trains on data/features_full_hourly.parquet
-so the model actually uses ALL wired data sources (calendar + lags +
-weather + Fingrid consumption/wind), not just calendar + lags.
+generate_forecast.py — trains on full history, then builds a CORRECT
+per-horizon feature row for each forecast point (calendar features match
+the actual target hour, not "now"), using live Open-Meteo forecast data
+instead of the stale 5-day-lagged archive.
 """
 
 import sqlite3
+import time
+import numpy as np
 import pandas as pd
+import requests
 import lightgbm as lgb
 
-from features import build_features, features_available_at_horizon
+from features import build_features, features_available_at_horizon, add_calendar_features
 
 HORIZONS_HOURS = [24, 48, 72, 96, 120]
 FEATURES_PATH = "data/features_full_hourly.parquet"
 DB_PATH = "data/electricity.db"
+
+OPEN_METEO_LOCATIONS = {
+    "helsinki": (60.1699, 24.9384),
+    "vaasa": (63.0960, 21.6158),
+}
 
 
 def train_full_models(feats: pd.DataFrame) -> dict:
@@ -33,31 +42,89 @@ def train_full_models(feats: pd.DataFrame) -> dict:
     return models
 
 
-def generate(feats: pd.DataFrame, models: dict) -> pd.DataFrame:
+def fetch_live_weather_forecast() -> dict:
+    """Fetch real-time Open-Meteo forecast (not archive) for both locations,
+    keyed by UTC hour timestamp. No lag — this is the live fix."""
+    forecast_by_time: dict = {}
+    for loc, (lat, lon) in OPEN_METEO_LOCATIONS.items():
+        url = "https://api.open-meteo.com/v1/forecast"
+        params = {
+            "latitude": lat, "longitude": lon,
+            "hourly": "temperature_2m,wind_speed_10m",
+            "forecast_days": 7, "timezone": "UTC",
+        }
+        try:
+            r = requests.get(url, params=params, timeout=30)
+            r.raise_for_status()
+            h = r.json()["hourly"]
+            times = pd.to_datetime(h["time"], utc=True)
+            for t, temp, wind in zip(times, h["temperature_2m"], h["wind_speed_10m"]):
+                forecast_by_time.setdefault(t, {})
+                forecast_by_time[t][f"temp_c_{loc}"] = temp
+                forecast_by_time[t][f"wind_ms_{loc}"] = wind
+                forecast_by_time[t][f"wind_cubed_{loc}"] = wind ** 3
+        except Exception as e:
+            print(f"  Live weather fetch failed for {loc}: {e}")
+        time.sleep(1)
+    return forecast_by_time
+
+
+def build_target_row(target_time: pd.Timestamp, price_history: pd.DataFrame,
+                     weather_forecast: dict, fingrid_latest: dict) -> dict:
+    """Build a feature row for a FUTURE target_time: calendar features derived
+    from target_time itself, price lags looked up from real history, weather
+    from the live forecast, Fingrid from last known values."""
+    row_df = pd.DataFrame({"timestamp": [target_time]})
+    row_df = add_calendar_features(row_df)
+    row = row_df.iloc[0].to_dict()
+
+    lag24_time = target_time - pd.Timedelta(hours=24)
+    lag168_time = target_time - pd.Timedelta(hours=168)
+    m24 = price_history[price_history["timestamp"] == lag24_time]
+    m168 = price_history[price_history["timestamp"] == lag168_time]
+    row["price_lag_24h"] = m24["price_snt_kwh"].iloc[0] if len(m24) else np.nan
+    row["price_lag_168h"] = m168["price_snt_kwh"].iloc[0] if len(m168) else np.nan
+
+    window_start = target_time - pd.Timedelta(hours=25)
+    window_end = target_time - pd.Timedelta(hours=1)
+    window = price_history[(price_history["timestamp"] >= window_start) &
+                           (price_history["timestamp"] <= window_end)]
+    row["price_rolling_mean_24h"] = window["price_snt_kwh"].mean() if len(window) >= 20 else np.nan
+
+    weather_row = weather_forecast.get(target_time, {})
+    row.update(weather_row)
+    row.update(fingrid_latest)
+    return row
+
+
+def generate(feats: pd.DataFrame, models: dict, price_history: pd.DataFrame) -> pd.DataFrame:
     feats_sorted = feats.sort_values("timestamp")
-    # Anchor target timestamps to the latest known price, regardless of weather lag.
     latest_price_time = feats_sorted["timestamp"].iloc[-1]
     made_at = pd.Timestamp.now("UTC")
+
+    print("Fetching live weather forecast (Open-Meteo, no archive lag)...")
+    weather_forecast = fetch_live_weather_forecast()
+    print(f"  Got weather for {len(weather_forecast)} future hours")
+
+    fingrid_cols = ["consumption_forecast_mw", "wind_forecast_mw", "nuclear_production_mw"]
+    present_fingrid = [c for c in fingrid_cols if c in feats_sorted.columns]
+    latest_fingrid = feats_sorted[present_fingrid].dropna().iloc[-1:].to_dict("records")
+    latest_fingrid = latest_fingrid[0] if latest_fingrid else {}
+
     rows = []
     for h in HORIZONS_HOURS:
         model, feature_cols = models[h]
-        # Use the most recent row that has ALL required features. Weather archive
-        # has a ~5-day lag, so this may be a few days behind the latest price row.
-        complete = feats_sorted.dropna(subset=feature_cols)
-        if complete.empty:
-            print(f"  N+{h//24}: SKIPPED (no complete rows for features: {feature_cols})")
-            continue
-        X = complete.iloc[[-1]][feature_cols]
-        lag_h = int((latest_price_time - complete.iloc[-1]["timestamp"]).total_seconds() / 3600)
-        if lag_h > 0:
-            print(f"  N+{h//24}: feature row is {lag_h}h old (weather archive lag)")
+        target_time = latest_price_time + pd.Timedelta(hours=h)
+        row = build_target_row(target_time, price_history, weather_forecast, latest_fingrid)
+        X = pd.DataFrame([row])[feature_cols]
         pred = model.predict(X)[0]
         rows.append({
-            "target_timestamp": latest_price_time + pd.Timedelta(hours=h),
+            "target_timestamp": target_time,
             "made_at": made_at,
             "horizon_hours": h,
             "predicted_price_snt_kwh": float(pred),
         })
+        print(f"  N+{h//24}: target={target_time}, predicted={pred:.3f}")
     return pd.DataFrame(rows)
 
 
@@ -92,8 +159,9 @@ def freeze(pred_df: pd.DataFrame):
 if __name__ == "__main__":
     feats_raw = pd.read_parquet(FEATURES_PATH)
     feats = build_features(feats_raw)
+    price_history = pd.read_parquet("data/price_history_hourly.parquet")
     print(f"Loaded {len(feats)} rows, {len(feats.columns)} columns")
     models = train_full_models(feats)
-    pred = generate(feats, models)
+    pred = generate(feats, models, price_history)
     print(pred.to_string(index=False))
     freeze(pred)

@@ -17,6 +17,7 @@ FINGRID_BASE = "https://data.fingrid.fi/api/datasets/{id}/data"
 FINGRID_DATASETS = {
     "consumption_forecast_mw": 166,
     "wind_forecast_mw": 245,
+    "nuclear_production_mw": 188,
 }
 
 
@@ -111,9 +112,14 @@ def build_full_features():
     wind = fetch_fingrid_history(FINGRID_DATASETS["wind_forecast_mw"], start_iso, end_iso)
     wind = wind.rename(columns={"value": "wind_forecast_mw"})
     print(f"  Wind: {len(wind)} rows")
+    print("Fetching Fingrid nuclear production history...")
+    time.sleep(2.5)
+    nuclear = fetch_fingrid_history(FINGRID_DATASETS["nuclear_production_mw"], start_iso, end_iso)
+    nuclear = nuclear.rename(columns={"value": "nuclear_production_mw"})
+    print(f"  Nuclear: {len(nuclear)} rows")
 
     merged = price_df.copy()
-    for df in [hki, vaa, cons, wind]:
+    for df in [hki, vaa, cons, wind, nuclear]:
         if len(df) > 0:
             merged = merged.merge(df, on="timestamp", how="left")
 

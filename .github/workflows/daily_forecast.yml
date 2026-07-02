@@ -49,6 +49,9 @@ jobs:
       - name: Generate and freeze forecast
         run: python src/generate_forecast.py
 
+      - name: Record actuals for matured predictions
+        run: python src/record_actuals.py
+
       - name: Export web snapshot
         run: python src/export_web_snapshot.py
 

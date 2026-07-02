@@ -77,9 +77,14 @@ def append_features(prices: pd.DataFrame):
     wind = fetch_fingrid_history(FINGRID_DATASETS["wind_forecast_mw"], start_iso, end_iso)
     wind = wind.rename(columns={"value": "wind_forecast_mw"})
     print(f"  Wind: {len(wind)} rows")
+    time.sleep(2.5)
+    print("Fetching Fingrid nuclear (incremental)...")
+    nuclear = fetch_fingrid_history(FINGRID_DATASETS["nuclear_production_mw"], start_iso, end_iso)
+    nuclear = nuclear.rename(columns={"value": "nuclear_production_mw"})
+    print(f"  Nuclear: {len(nuclear)} rows")
 
     new_slice = prices[prices["timestamp"] >= window_start].copy()
-    for df in [hki, vaa, cons, wind]:
+    for df in [hki, vaa, cons, wind, nuclear]:
         if len(df) > 0:
             new_slice = new_slice.merge(df, on="timestamp", how="left")
 

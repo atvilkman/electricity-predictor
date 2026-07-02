@@ -32,6 +32,7 @@ FEATURE_AVAILABILITY_HOURS = {
     "wind_cubed_vaasa": 240,
     "consumption_forecast_mw": 72,
     "wind_forecast_mw": 36,
+    "nuclear_production_mw": 48,   # Fingrid real-time-ish; treat as short-horizon only
 }
 
 
