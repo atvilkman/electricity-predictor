@@ -21,6 +21,91 @@ const FUEL_COLORS: Record<string, string> = {
   "Other": "#9ca3af",
 };
 
+const FUEL_CATEGORY: Record<string, "renewable" | "nuclear" | "fossil"> = {
+  "Wind Onshore": "renewable",
+  "Wind Offshore": "renewable",
+  "Hydro Water Reservoir": "renewable",
+  "Hydro Run-of-river and poundage": "renewable",
+  "Hydro Pumped Storage": "renewable",
+  "Solar": "renewable",
+  "Biomass": "renewable",
+  "Other renewable": "renewable",
+  "Waste": "renewable",
+  "Nuclear": "nuclear",
+  "Fossil Gas": "fossil",
+  "Fossil Hard coal": "fossil",
+  "Fossil Oil": "fossil",
+  "Fossil Peat": "fossil",
+  "Fossil Brown coal/Lignite": "fossil",
+  "Energy storage": "fossil",
+  "Other": "fossil",
+};
+
+const EMISSION_FACTORS_G_PER_KWH: Record<string, number> = {
+  "Nuclear": 12,
+  "Wind Onshore": 11,
+  "Wind Offshore": 12,
+  "Hydro Water Reservoir": 24,
+  "Hydro Run-of-river and poundage": 24,
+  "Hydro Pumped Storage": 24,
+  "Solar": 45,
+  "Biomass": 230,
+  "Other renewable": 50,
+  "Waste": 150,
+  "Fossil Gas": 490,
+  "Fossil Hard coal": 820,
+  "Fossil Oil": 650,
+  "Fossil Peat": 900,
+  "Fossil Brown coal/Lignite": 1000,
+  "Energy storage": 0,
+  "Other": 400,
+};
+
+function computeSustainabilityShares(
+  generation: { t: string; fuel: string; mw: number }[],
+  days: number
+): { renewable: number; nuclear: number; fossil: number } {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const filtered = generation.filter(r => new Date(r.t).getTime() >= cutoff);
+
+  const totals = { renewable: 0, nuclear: 0, fossil: 0 };
+  let grandTotal = 0;
+
+  for (const row of filtered) {
+    const cat = FUEL_CATEGORY[row.fuel] ?? "fossil";
+    if (row.mw > 0) {
+      totals[cat] += row.mw;
+      grandTotal += row.mw;
+    }
+  }
+
+  if (grandTotal === 0) return { renewable: 0, nuclear: 0, fossil: 0 };
+  return {
+    renewable: (totals.renewable / grandTotal) * 100,
+    nuclear: (totals.nuclear / grandTotal) * 100,
+    fossil: (totals.fossil / grandTotal) * 100,
+  };
+}
+
+function computeCarbonIntensity(
+  generation: { t: string; fuel: string; mw: number }[],
+  days: number
+): number {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const filtered = generation.filter(r => new Date(r.t).getTime() >= cutoff);
+
+  let weightedSum = 0;
+  let totalMw = 0;
+  for (const row of filtered) {
+    if (row.mw > 0) {
+      const factor = EMISSION_FACTORS_G_PER_KWH[row.fuel] ?? 400;
+      weightedSum += row.mw * factor;
+      totalMw += row.mw;
+    }
+  }
+  return totalMw === 0 ? 0 : weightedSum / totalMw;
+}
+
 function fmtAxis(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
     timeZone: "Europe/Helsinki", day: "2-digit", month: "short",
@@ -43,6 +128,30 @@ function RangeSelector({ value, onChange }: { value: RangeOption; onChange: (v: 
           {opt}d
         </button>
       ))}
+    </div>
+  );
+}
+
+function SustainabilityCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="mt-2 text-3xl font-semibold" style={{ color }}>
+        {value.toFixed(1)}%
+      </div>
+    </div>
+  );
+}
+
+function CarbonCard({ label, value }: { label: string; value: number }) {
+  const color = value < 100 ? "#10b981" : value < 300 ? "#f59e0b" : "#ef4444";
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="mt-2 text-3xl font-semibold" style={{ color }}>
+        {value.toFixed(0)}
+      </div>
+      <div className="text-xs text-gray-400">gCO₂/kWh</div>
     </div>
   );
 }
@@ -189,6 +298,14 @@ export default function GridTab() {
     new Date(a.t as string).getTime() - new Date(b.t as string).getTime()
   );
 
+  const shares7d = computeSustainabilityShares(snap.generation, 7);
+  const shares30d = computeSustainabilityShares(snap.generation, 30);
+  const shares180d = computeSustainabilityShares(snap.generation, 180);
+
+  const co2_7d = computeCarbonIntensity(snap.generation, 7);
+  const co2_30d = computeCarbonIntensity(snap.generation, 30);
+  const co2_180d = computeCarbonIntensity(snap.generation, 180);
+
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -206,6 +323,34 @@ export default function GridTab() {
               <Area type="monotone" dataKey="mw" stroke="#1f77b4" fill="#1f77b4" fillOpacity={0.15} />
             </AreaChart>
           </ResponsiveContainer>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Sustainability Mix</h2>
+
+        <div className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Last 7 days</div>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+          <SustainabilityCard label="Renewable" value={shares7d.renewable} color="#10b981" />
+          <SustainabilityCard label="Nuclear" value={shares7d.nuclear} color="#7c3aed" />
+          <SustainabilityCard label="Fossil" value={shares7d.fossil} color="#78716c" />
+          <CarbonCard label="Carbon Intensity" value={co2_7d} />
+        </div>
+
+        <div className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Last 30 days</div>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+          <SustainabilityCard label="Renewable" value={shares30d.renewable} color="#10b981" />
+          <SustainabilityCard label="Nuclear" value={shares30d.nuclear} color="#7c3aed" />
+          <SustainabilityCard label="Fossil" value={shares30d.fossil} color="#78716c" />
+          <CarbonCard label="Carbon Intensity" value={co2_30d} />
+        </div>
+
+        <div className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Last 180 days</div>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <SustainabilityCard label="Renewable" value={shares180d.renewable} color="#10b981" />
+          <SustainabilityCard label="Nuclear" value={shares180d.nuclear} color="#7c3aed" />
+          <SustainabilityCard label="Fossil" value={shares180d.fossil} color="#78716c" />
+          <CarbonCard label="Carbon Intensity" value={co2_180d} />
         </div>
       </section>
 

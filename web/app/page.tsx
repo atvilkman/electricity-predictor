@@ -5,6 +5,7 @@ import MetricCards from "@/components/MetricCards";
 import Tabs from "@/components/Tabs";
 import EmptyTab from "@/components/EmptyTab";
 import GridTab from "@/components/GridTab";
+import AboutTab from "@/components/AboutTab";
 import { loadSnapshot, type Snapshot } from "@/lib/data";
 
 export default function Home() {
@@ -75,6 +76,7 @@ export default function Home() {
             message="No scored predictions yet. Accuracy fills in once daily forecasts graduate into known actuals — needs several days of automated runs."
           /> },
         { id: "grid", label: "Grid", content: <GridTab /> },
+        { id: "about", label: "About", content: <AboutTab /> },
       ]} />
     </main>
   );
