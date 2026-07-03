@@ -53,18 +53,22 @@ def fetch_live_weather_forecast() -> dict:
             "hourly": "temperature_2m,wind_speed_10m",
             "forecast_days": 7, "timezone": "UTC",
         }
-        try:
-            r = requests.get(url, params=params, timeout=30)
-            r.raise_for_status()
-            h = r.json()["hourly"]
-            times = pd.to_datetime(h["time"], utc=True)
-            for t, temp, wind in zip(times, h["temperature_2m"], h["wind_speed_10m"]):
-                forecast_by_time.setdefault(t, {})
-                forecast_by_time[t][f"temp_c_{loc}"] = temp
-                forecast_by_time[t][f"wind_ms_{loc}"] = wind
-                forecast_by_time[t][f"wind_cubed_{loc}"] = wind ** 3
-        except Exception as e:
-            print(f"  Live weather fetch failed for {loc}: {e}")
+        for attempt in range(3):
+            try:
+                r = requests.get(url, params=params, timeout=60)
+                r.raise_for_status()
+                h = r.json()["hourly"]
+                times = pd.to_datetime(h["time"], utc=True)
+                for t_, temp, wind in zip(times, h["temperature_2m"], h["wind_speed_10m"]):
+                    forecast_by_time.setdefault(t_, {})
+                    forecast_by_time[t_][f"temp_c_{loc}"] = temp
+                    forecast_by_time[t_][f"wind_ms_{loc}"] = wind
+                    forecast_by_time[t_][f"wind_cubed_{loc}"] = wind ** 3
+                break
+            except Exception as e:
+                print(f"  Live weather fetch attempt {attempt+1}/3 failed for {loc}: {e}")
+                if attempt < 2:
+                    time.sleep(10)
         time.sleep(1)
     return forecast_by_time
 
@@ -93,6 +97,9 @@ def build_target_row(target_time: pd.Timestamp, price_history: pd.DataFrame,
 
     weather_row = weather_forecast.get(target_time, {})
     row.update(weather_row)
+    for loc in OPEN_METEO_LOCATIONS:
+        for col in (f"temp_c_{loc}", f"wind_ms_{loc}", f"wind_cubed_{loc}"):
+            row.setdefault(col, np.nan)
     row.update(fingrid_latest)
     return row
 
