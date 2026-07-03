@@ -15,3 +15,4 @@ function copyFile(name) {
 
 copyFile("web_snapshot.json");
 copyFile("grid_snapshot.json");
+copyFile("hourly_snapshot.json");

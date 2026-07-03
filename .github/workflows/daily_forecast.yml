@@ -60,6 +60,12 @@ jobs:
       - name: Export grid snapshot
         run: python src/export_grid_snapshot.py
 
+      - name: Generate hourly forecast curve
+        run: python src/generate_hourly_forecast.py
+
+      - name: Export hourly snapshot
+        run: python src/export_hourly_snapshot.py
+
       - name: Export web snapshot
         run: python src/export_web_snapshot.py
 
@@ -67,7 +73,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/*.parquet data/web_snapshot.json data/grid_snapshot.json
+          git add data/*.parquet data/web_snapshot.json data/grid_snapshot.json data/hourly_snapshot.json
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else

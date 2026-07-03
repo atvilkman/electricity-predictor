@@ -295,6 +295,7 @@ export default function ForecastChart({ snap }: { snap: Snapshot }) {
       </ResponsiveContainer>
     </div>
     <p className="mt-3 text-xs text-gray-400">{t("bandNote")}</p>
+    <p className="mt-1 text-xs text-gray-400">{t("priceVarianceNote")}</p>
     </>
   );
 }

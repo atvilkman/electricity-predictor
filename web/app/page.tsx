@@ -5,6 +5,7 @@ import MetricCards from "@/components/MetricCards";
 import Tabs from "@/components/Tabs";
 import EmptyTab from "@/components/EmptyTab";
 import GridTab from "@/components/GridTab";
+import HourlyTab from "@/components/HourlyTab";
 import AboutTab from "@/components/AboutTab";
 import { loadSnapshot, type Snapshot } from "@/lib/data";
 import { useLanguage } from "@/lib/i18n";
@@ -78,6 +79,7 @@ export default function Home() {
 
       <Tabs tabs={[
         { id: "forecast", label: t("tabForecast"), content: forecastTab },
+        { id: "hourly", label: t("tabHourly"), content: <HourlyTab /> },
         { id: "vs-actual", label: t("tabVsActual"), content:
           <EmptyTab title={t("vsActualTitle")} message={t("vsActualEmpty")} /> },
         { id: "accuracy", label: t("tabAccuracy"), content:

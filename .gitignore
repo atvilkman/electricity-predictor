@@ -33,3 +33,4 @@ build/
 
 !data/web_snapshot.json
 !data/grid_snapshot.json
+!data/hourly_snapshot.json
