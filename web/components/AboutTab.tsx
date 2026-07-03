@@ -29,6 +29,12 @@ export default function AboutTab() {
       </div>
 
       <div className="space-y-3">
+        <h3 className="text-lg font-semibold text-gray-900">{t("aboutSignalsTitle")}</h3>
+        <p className="text-gray-700 leading-relaxed">{t("aboutSignalsP1")}</p>
+        <p className="text-gray-700 leading-relaxed">{t("aboutSignalsP2")}</p>
+      </div>
+
+      <div className="space-y-3">
         <h3 className="text-lg font-semibold text-gray-900">{t("aboutGridTitle")}</h3>
         <p className="text-gray-700 leading-relaxed">{t("aboutGridP1")}</p>
         <ul className="list-disc list-inside text-gray-700 space-y-1 pl-2">

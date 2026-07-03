@@ -311,6 +311,7 @@ export default function GridTab() {
           <h2 className="text-lg font-semibold text-gray-900">{t("gridLoadTitle")}</h2>
           <RangeSelector value={loadRange} onChange={setLoadRange} />
         </div>
+        <p className="text-xs text-gray-400 mb-3">{t("gridLoadCaption")}</p>
         <div className="w-full h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={loadData}>
@@ -325,7 +326,8 @@ export default function GridTab() {
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t("gridSustainabilityTitle")}</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">{t("gridSustainabilityTitle")}</h2>
+        <p className="text-xs text-gray-400 mb-4">{t("gridSustainCaption")}</p>
 
         <div className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">{t("gridLast7")}</div>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
@@ -368,6 +370,7 @@ export default function GridTab() {
             <RangeSelector value={genRange} onChange={setGenRange} />
           </div>
         </div>
+        <p className="text-xs text-gray-400 mb-3">{t("gridGenCaption")}</p>
         <div className="w-full h-[380px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={genData}>
@@ -402,6 +405,7 @@ export default function GridTab() {
             <RangeSelector value={flowRange} onChange={setFlowRange} />
           </div>
         </div>
+        <p className="text-xs text-gray-400 mb-3">{t("gridFlowCaption")}</p>
         <div className="w-full h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={flowData}>

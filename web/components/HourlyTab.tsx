@@ -9,20 +9,19 @@ import { useLanguage } from "@/lib/i18n";
 type HourlyPoint = { t: string; p: number; horizon_h: number };
 type HourlySnapshot = { generated_at: string; hourly: HourlyPoint[] };
 
-function fmtAxis(v: number): string {
-  return new Date(v).toLocaleString("en-GB", {
-    timeZone: "Europe/Helsinki", day: "2-digit", month: "short", hour: "2-digit",
+function fmtAxis(v: number, lang: string): string {
+  return new Date(v).toLocaleString(lang === "fi" ? "fi-FI" : "en-GB", {
+    timeZone: "Europe/Helsinki", day: "2-digit", month: "short",
   });
 }
-function fmtTooltip(v: number): string {
-  return new Date(v).toLocaleString("en-GB", {
-    timeZone: "Europe/Helsinki", weekday: "short", day: "2-digit", month: "short",
-    hour: "2-digit", minute: "2-digit",
+function fmtTooltip(v: number, lang: string): string {
+  return new Date(v).toLocaleString(lang === "fi" ? "fi-FI" : "en-GB", {
+    timeZone: "Europe/Helsinki", weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
   });
 }
 
 export default function HourlyTab() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [snap, setSnap] = useState<HourlySnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,10 +57,10 @@ export default function HourlyTab() {
           <ComposedChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis dataKey="t" type="number" scale="time" domain={["dataMin", "dataMax"]}
-                   tickFormatter={fmtAxis} tick={{ fontSize: 11, fill: "#6b7280" }} />
+                   tickFormatter={(v) => fmtAxis(v, lang)} tick={{ fontSize: 11, fill: "#6b7280" }} />
             <YAxis tick={{ fontSize: 11, fill: "#6b7280" }}
                    label={{ value: "snt/kWh", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#6b7280" } }} />
-            <Tooltip labelFormatter={(v) => fmtTooltip(v as number)}
+            <Tooltip labelFormatter={(v) => fmtTooltip(v as number, lang)}
                      formatter={(v) => [typeof v === "number" ? `${v.toFixed(2)} snt/kWh` : String(v ?? ""), "Predicted"]} />
             <ReferenceLine x={now} stroke="#374151" strokeDasharray="2 2"
                            label={{ value: "Now", position: "top", fontSize: 12 }} />

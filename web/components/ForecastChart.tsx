@@ -17,19 +17,14 @@ type Point = {
   isForecastBridge?: boolean;
 };
 
-function fmtAxis(v: number): string {
-  const d = new Date(v);
-  return d.toLocaleString("en-GB", {
-    timeZone: "Europe/Helsinki",
-    day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+function fmtAxis(v: number, lang: string): string {
+  return new Date(v).toLocaleString(lang === "fi" ? "fi-FI" : "en-GB", {
+    timeZone: "Europe/Helsinki", day: "2-digit", month: "short",
   });
 }
-function fmtTooltip(v: number): string {
-  const d = new Date(v);
-  return d.toLocaleString("en-GB", {
-    timeZone: "Europe/Helsinki",
-    weekday: "short", day: "2-digit", month: "short",
-    hour: "2-digit", minute: "2-digit",
+function fmtTooltip(v: number, lang: string): string {
+  return new Date(v).toLocaleString(lang === "fi" ? "fi-FI" : "en-GB", {
+    timeZone: "Europe/Helsinki", weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
   });
 }
 
@@ -58,7 +53,7 @@ function ForecastTooltip(props: {
   active?: boolean;
   payload?: readonly TooltipEntry[];
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { active, payload } = props;
   if (!active || !payload || payload.length === 0) return null;
 
@@ -75,7 +70,7 @@ function ForecastTooltip(props: {
 
   if (!row) return null;
 
-  const time = fmtTooltip(row.t);
+  const time = fmtTooltip(row.t, lang);
   const rows: { label: string; value: string; color: string }[] = [];
 
   if (row.known !== undefined) {
@@ -125,7 +120,7 @@ function ForecastTooltip(props: {
 }
 
 export default function ForecastChart({ snap }: { snap: Snapshot }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const now = Date.now();
 
   const currentKnown = [...snap.known]
@@ -205,7 +200,7 @@ export default function ForecastChart({ snap }: { snap: Snapshot }) {
             dataKey="t" type="number" scale="time"
             domain={[domainStart, domainEnd]}
             ticks={ticks}
-            tickFormatter={fmtAxis}
+            tickFormatter={(v) => fmtAxis(v, lang)}
             tick={{ fontSize: 12, fill: "#4b5563" }}
             stroke="#9ca3af"
           />
