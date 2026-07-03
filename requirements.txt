@@ -9,3 +9,4 @@ holidays==0.47
 python-dotenv==1.0.1
 scikit-learn==1.5.0
 entsoe-py>=0.6.16
+jao-py==0.6.9

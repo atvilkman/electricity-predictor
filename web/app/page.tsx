@@ -6,6 +6,7 @@ import Tabs from "@/components/Tabs";
 import EmptyTab from "@/components/EmptyTab";
 import GridTab from "@/components/GridTab";
 import HourlyTab from "@/components/HourlyTab";
+import SignalsTab from "@/components/SignalsTab";
 import AboutTab from "@/components/AboutTab";
 import { loadSnapshot, type Snapshot } from "@/lib/data";
 import { useLanguage } from "@/lib/i18n";
@@ -85,6 +86,7 @@ export default function Home() {
         { id: "accuracy", label: t("tabAccuracy"), content:
           <EmptyTab title={t("accuracyTitle")} message={t("accuracyEmpty")} /> },
         { id: "grid", label: t("tabGrid"), content: <GridTab /> },
+        { id: "signals", label: t("tabSignals"), content: <SignalsTab /> },
         { id: "about", label: t("tabAbout"), content: <AboutTab /> },
       ]} />
       <footer className="mt-12 pb-8 text-center text-xs text-gray-400">
