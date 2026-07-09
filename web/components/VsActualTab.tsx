@@ -69,7 +69,7 @@ export default function VsActualTab({ records }: { records: VsActualRecord[] }) 
                   weekday: "short", day: "2-digit", month: "short", hour: "2-digit",
                 });
                 const madeAt = new Date(r.made_at).toLocaleString(locale, {
-                  timeZone: "Europe/Helsinki", day: "2-digit", month: "short", hour: "2-digit",
+                  timeZone: "Europe/Helsinki", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
                 });
                 return (
                   <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
