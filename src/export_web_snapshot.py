@@ -36,7 +36,18 @@ def build_snapshot() -> dict:
     # Latest forecast (all horizons from the most recent made_at)
     conn = sqlite3.connect(DB_PATH)
     preds = pd.read_sql("SELECT * FROM predictions", conn)
+
+    # Forecast vs Actual: all predictions that have a matching actual
+    joined = pd.read_sql("""
+        SELECT p.target_timestamp AS t, p.made_at, p.horizon_hours,
+               p.predicted_price_snt_kwh AS predicted,
+               a.actual_price_snt_kwh AS actual
+        FROM predictions p
+        JOIN actuals a ON p.target_timestamp = a.target_timestamp
+        ORDER BY p.target_timestamp, p.made_at
+    """, conn)
     conn.close()
+
     forecast_records = []
     if not preds.empty:
         preds["made_at"] = pd.to_datetime(preds["made_at"], utc=True)
@@ -56,12 +67,54 @@ def build_snapshot() -> dict:
         mae_by_horizon = {int(h): round(float(m), 3) for h, m
                            in zip(vdf["horizon_hours"], vdf["model_mae_snt_kwh"])}
 
+    # Forecast vs Actual records
+    vs_actual = []
+    for _, r in joined.iterrows():
+        vs_actual.append({
+            "t": ts_iso(r["t"]),
+            "made_at": ts_iso(r["made_at"]),
+            "horizon_h": int(r["horizon_hours"]),
+            "predicted": round(float(r["predicted"]), 3),
+            "actual": round(float(r["actual"]), 3),
+        })
+
+    # Live accuracy per horizon (from real frozen forecasts)
+    live_accuracy = []
+    if not joined.empty:
+        for h in [24, 48, 72, 96, 120]:
+            hdf = joined[joined["horizon_hours"] == h]
+            if len(hdf) > 0:
+                mae = float(abs(hdf["predicted"] - hdf["actual"]).mean())
+                live_accuracy.append({
+                    "horizon_h": h,
+                    "label": f"N+{h // 24}",
+                    "mae": round(mae, 3),
+                    "n": len(hdf),
+                })
+
+    # Validation accuracy (from training, model vs naive-week baseline)
+    validation_accuracy = []
+    if Path(VALIDATION_RESULTS_PATH).exists():
+        vdf = pd.read_parquet(VALIDATION_RESULTS_PATH)
+        for _, r in vdf.iterrows():
+            validation_accuracy.append({
+                "horizon_h": int(r["horizon_hours"]),
+                "label": str(r["horizon_label"]),
+                "model_mae": round(float(r["model_mae_snt_kwh"]), 3),
+                "naive_mae": round(float(r["naive_week_mae_snt_kwh"]), 3),
+                "beats_naive": bool(r["beats_naive"]),
+                "n_val": int(r["n_val"]),
+            })
+
     return {
         "generated_at": ts_iso(now_utc),
         "known": recent_records,
         "forecast": forecast_records,
         "mae_by_horizon": mae_by_horizon,
         "thresholds": {"cheap": 2.0, "expensive": 15.0},
+        "vs_actual": vs_actual,
+        "live_accuracy": live_accuracy,
+        "validation_accuracy": validation_accuracy,
     }
 
 

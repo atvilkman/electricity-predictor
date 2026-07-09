@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import ForecastChart from "@/components/ForecastChart";
 import MetricCards from "@/components/MetricCards";
 import Tabs from "@/components/Tabs";
-import EmptyTab from "@/components/EmptyTab";
+import VsActualTab from "@/components/VsActualTab";
+import AccuracyTab from "@/components/AccuracyTab";
 import GridTab from "@/components/GridTab";
 import HourlyTab from "@/components/HourlyTab";
 import SignalsTab from "@/components/SignalsTab";
@@ -82,9 +83,9 @@ export default function Home() {
         { id: "forecast", label: t("tabForecast"), content: forecastTab },
         { id: "hourly", label: t("tabHourly"), content: <HourlyTab /> },
         { id: "vs-actual", label: t("tabVsActual"), content:
-          <EmptyTab title={t("vsActualTitle")} message={t("vsActualEmpty")} /> },
+          <VsActualTab records={snap.vs_actual} /> },
         { id: "accuracy", label: t("tabAccuracy"), content:
-          <EmptyTab title={t("accuracyTitle")} message={t("accuracyEmpty")} /> },
+          <AccuracyTab live={snap.live_accuracy} validation={snap.validation_accuracy} /> },
         { id: "grid", label: t("tabGrid"), content: <GridTab /> },
         { id: "signals", label: t("tabSignals"), content: <SignalsTab /> },
         { id: "about", label: t("tabAbout"), content: <AboutTab /> },
