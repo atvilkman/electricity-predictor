@@ -38,22 +38,27 @@ def fetch_openmeteo_signals():
             "hourly": "wind_speed_10m,shortwave_radiation,temperature_2m",
             "forecast_days": 2, "timezone": "UTC",
         }
-        try:
-            r = requests.get(url, params=params, timeout=30)
-            r.raise_for_status()
-            h = r.json()["hourly"]
-            times = pd.to_datetime(h["time"], utc=True)
-            df = pd.DataFrame({"t": times, "wind": h["wind_speed_10m"],
-                                "solar": h["shortwave_radiation"],
-                                "temp": h["temperature_2m"]})
-            next24 = df[(df["t"] >= now) & (df["t"] < now + pd.Timedelta(hours=24))]
-            forecast_wind[loc] = next24["wind"].mean()
-            if loc == "helsinki":
-                forecast_solar = next24["solar"].mean()
-                forecast_temp = next24["temp"].mean()
-        except Exception as e:
-            print(f"  Open-Meteo forecast failed for {loc}: {e}")
-            forecast_wind[loc] = None
+        for attempt in range(3):
+            try:
+                r = requests.get(url, params=params, timeout=60)
+                r.raise_for_status()
+                h = r.json()["hourly"]
+                times = pd.to_datetime(h["time"], utc=True)
+                df = pd.DataFrame({"t": times, "wind": h["wind_speed_10m"],
+                                    "solar": h["shortwave_radiation"],
+                                    "temp": h["temperature_2m"]})
+                next24 = df[(df["t"] >= now) & (df["t"] < now + pd.Timedelta(hours=24))]
+                forecast_wind[loc] = next24["wind"].mean()
+                if loc == "helsinki":
+                    forecast_solar = next24["solar"].mean()
+                    forecast_temp = next24["temp"].mean()
+                break
+            except Exception as e:
+                print(f"  Open-Meteo forecast attempt {attempt+1}/3 failed for {loc}: {e}")
+                if attempt < 2:
+                    time.sleep(10)
+                else:
+                    forecast_wind[loc] = None
         time.sleep(0.5)
 
     baseline_wind = {}
@@ -68,17 +73,22 @@ def fetch_openmeteo_signals():
             "hourly": "wind_speed_10m,shortwave_radiation,temperature_2m",
             "start_date": start, "end_date": end, "timezone": "UTC",
         }
-        try:
-            r = requests.get(url, params=params, timeout=30)
-            r.raise_for_status()
-            h = r.json()["hourly"]
-            baseline_wind[loc] = pd.Series(h["wind_speed_10m"]).mean()
-            if loc == "helsinki":
-                baseline_solar = pd.Series(h["shortwave_radiation"]).mean()
-                baseline_temp = pd.Series(h["temperature_2m"]).mean()
-        except Exception as e:
-            print(f"  Open-Meteo archive failed for {loc}: {e}")
-            baseline_wind[loc] = None
+        for attempt in range(3):
+            try:
+                r = requests.get(url, params=params, timeout=60)
+                r.raise_for_status()
+                h = r.json()["hourly"]
+                baseline_wind[loc] = pd.Series(h["wind_speed_10m"]).mean()
+                if loc == "helsinki":
+                    baseline_solar = pd.Series(h["shortwave_radiation"]).mean()
+                    baseline_temp = pd.Series(h["temperature_2m"]).mean()
+                break
+            except Exception as e:
+                print(f"  Open-Meteo archive attempt {attempt+1}/3 failed for {loc}: {e}")
+                if attempt < 2:
+                    time.sleep(10)
+                else:
+                    baseline_wind[loc] = None
         time.sleep(0.5)
 
     wind_now = pd.Series(forecast_wind).mean()
