@@ -35,3 +35,4 @@ build/
 !data/grid_snapshot.json
 !data/hourly_snapshot.json
 !data/signals_snapshot.json
+!data/electricity.db
