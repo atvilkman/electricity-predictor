@@ -1,32 +1,32 @@
 {
-  "generated_at": "2026-11-24T01:39:30.986563+00:00",
+  "generated_at": "2026-11-25T23:07:42.965745+00:00",
   "wind": {
-    "value_ms": 16.56,
+    "value_ms": 13.67,
     "baseline_ms": 15.29
   },
   "solar": {
-    "value_wm2": 9.0,
-    "baseline_wm2": 27.2
+    "value_wm2": 22.0,
+    "baseline_wm2": 24.9
   },
   "demand": {
-    "value_c": 1.2,
-    "baseline_c": 6.9
+    "value_c": -1.6,
+    "baseline_c": 6.8
   },
   "hydro": {
-    "value_mm": null,
-    "baseline_mm": null,
-    "note": "fetch_failed"
+    "value_mm": 6.1,
+    "baseline_mm": 5.5,
+    "as_of": "2026-11-16T00:00:00"
   },
   "transmission": {
-    "FI->SE1": null,
-    "SE1->FI": null,
-    "FI->SE3": null,
-    "SE3->FI": null,
-    "FI->EE": null,
-    "EE->FI": null
+    "FI->SE1": 1719.1,
+    "SE1->FI": 1933.2,
+    "FI->SE3": 1156.5,
+    "SE3->FI": 1156.5,
+    "FI->EE": 1016.0,
+    "EE->FI": 1016.0
   },
   "nuclear": {
-    "value_mw": 4211.0,
-    "pct_of_capacity": 95.8
+    "value_mw": 3535.0,
+    "pct_of_capacity": 80.5
   }
 }
